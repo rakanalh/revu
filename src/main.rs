@@ -4,6 +4,7 @@ mod events;
 mod github;
 mod keybindings;
 mod settings;
+mod syntax_highlight;
 mod theme;
 mod ui;
 

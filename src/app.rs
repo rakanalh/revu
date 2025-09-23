@@ -107,12 +107,15 @@ impl App {
             Theme::load("catppuccin-mocha").expect("Failed to load default theme")
         });
 
+        let mut diff_view = DiffView::new();
+        diff_view.set_theme(&theme.name);
+
         Ok(Self {
             state: AppState::Loading(LoadingStatus::new()),
             should_quit: false,
             pr: None,
             sidebar: None,
-            diff_view: DiffView::new(),
+            diff_view,
             navigation: None,
             files: Vec::new(),
             commits: Vec::new(),

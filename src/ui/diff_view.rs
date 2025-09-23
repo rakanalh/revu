@@ -1,5 +1,6 @@
 use crate::{
     github::models::{DiffContent, FileChange, LineType},
+    syntax_highlight::{syntect_style_to_ratatui_style, SyntaxHighlighter},
     theme::Theme,
 };
 use ratatui::{
@@ -17,6 +18,8 @@ pub struct DiffView {
     pub viewport_height: u16,
     pub total_lines: usize,
     hunk_positions: Vec<usize>,
+    syntax_highlighter: Option<SyntaxHighlighter>,
+    theme_name: Option<String>,
 }
 
 impl DiffView {
@@ -28,15 +31,34 @@ impl DiffView {
             viewport_height: 20,
             total_lines: 0,
             hunk_positions: Vec::new(),
+            syntax_highlighter: None,
+            theme_name: None,
         }
     }
 
     pub fn set_file(&mut self, file: Option<FileChange>) {
+        // Create syntax highlighter for the file with theme if available
+        self.syntax_highlighter = file.as_ref().map(|f| {
+            if let Some(ref theme_name) = self.theme_name {
+                SyntaxHighlighter::with_theme(&f.filename, theme_name)
+            } else {
+                SyntaxHighlighter::new(&f.filename)
+            }
+        });
         self.current_file = file;
         self.scroll_offset = 0;
         self.update_hunk_positions();
         self.update_max_scroll();
         self.scroll_to_first_change();
+    }
+
+    pub fn set_theme(&mut self, theme_name: &str) {
+        self.theme_name = Some(theme_name.to_string());
+        // Recreate syntax highlighter with new theme if a file is loaded
+        if let Some(ref file) = self.current_file {
+            self.syntax_highlighter =
+                Some(SyntaxHighlighter::with_theme(&file.filename, theme_name));
+        }
     }
 
     fn update_max_scroll(&mut self) {
@@ -300,23 +322,82 @@ impl DiffView {
                 // Show full file with changes highlighted
                 lines.extend(self.render_full_file_diff(diff, theme));
             } else if let Some(ref patch) = file.patch {
-                // Fallback to raw patch
+                // Fallback to raw patch with syntax highlighting
                 for line in patch.lines() {
-                    let (style, content) = if line.starts_with('+') {
-                        (Style::default().fg(Color::Green), line.to_string())
-                    } else if line.starts_with('-') {
-                        (Style::default().fg(Color::Red), line.to_string())
-                    } else if line.starts_with("@@") {
-                        (
+                    let formatted_line = if line.starts_with("@@") {
+                        // Header line - no syntax highlighting
+                        vec![Span::styled(
+                            line.to_string(),
                             Style::default()
                                 .fg(Color::Cyan)
                                 .add_modifier(Modifier::BOLD),
-                            line.to_string(),
-                        )
+                        )]
+                    } else if line.starts_with('+') || line.starts_with('-') {
+                        // Addition or deletion with syntax highlighting
+                        let (base_style, background_color) = if line.starts_with('+') {
+                            (
+                                Style::default().fg(theme.added()),
+                                Some(Color::Rgb(0, 40, 0)),
+                            )
+                        } else {
+                            (
+                                Style::default().fg(theme.removed()),
+                                Some(Color::Rgb(40, 0, 0)),
+                            )
+                        };
+
+                        if let Some(ref highlighter) = self.syntax_highlighter {
+                            let mut spans = Vec::new();
+                            // Add the +/- prefix
+                            spans.push(Span::styled(line[0..1].to_string(), base_style));
+
+                            // Syntax highlight the rest if there's content after the prefix
+                            if line.len() > 1 {
+                                let code_content = &line[1..];
+                                let highlighted_spans = highlighter.highlight_line(code_content);
+
+                                for (syntax_style, text) in highlighted_spans {
+                                    let mut span_style =
+                                        syntect_style_to_ratatui_style(&syntax_style);
+                                    if let Some(bg) = background_color {
+                                        span_style = span_style.bg(bg);
+                                    }
+                                    spans.push(Span::styled(text, span_style));
+                                }
+                            }
+                            spans
+                        } else {
+                            // No syntax highlighting
+                            vec![Span::styled(
+                                line.to_string(),
+                                if let Some(bg) = background_color {
+                                    base_style.bg(bg)
+                                } else {
+                                    base_style
+                                },
+                            )]
+                        }
                     } else {
-                        (Style::default(), line.to_string())
+                        // Context line with syntax highlighting
+                        if let Some(ref highlighter) = self.syntax_highlighter {
+                            let highlighted_spans = highlighter.highlight_line(line);
+                            highlighted_spans
+                                .into_iter()
+                                .map(|(syntax_style, text)| {
+                                    Span::styled(
+                                        text,
+                                        syntect_style_to_ratatui_style(&syntax_style),
+                                    )
+                                })
+                                .collect()
+                        } else {
+                            vec![Span::styled(
+                                line.to_string(),
+                                Style::default().fg(theme.context()),
+                            )]
+                        }
                     };
-                    lines.push(Line::from(Span::styled(content, style)));
+                    lines.push(Line::from(formatted_line));
                 }
             } else {
                 lines.push(Line::from("No diff available for this file"));
@@ -404,30 +485,89 @@ impl DiffView {
                 }
             };
 
-            // Determine the prefix character and style based on the line type
-            let (prefix, style) = match diff_line.line_type {
+            // Determine the prefix character and base style based on the line type
+            let (prefix, base_style, background_color) = match diff_line.line_type {
                 LineType::Addition => (
                     "+",
-                    Style::default().fg(theme.added()).bg(Color::Rgb(0, 40, 0)), // Subtle green background
+                    Style::default().fg(theme.added()),
+                    Some(Color::Rgb(0, 40, 0)), // Subtle green background
                 ),
                 LineType::Deletion => (
                     "-",
-                    Style::default()
-                        .fg(theme.removed())
-                        .bg(Color::Rgb(40, 0, 0)), // Subtle red background
+                    Style::default().fg(theme.removed()),
+                    Some(Color::Rgb(40, 0, 0)), // Subtle red background
                 ),
-                LineType::Context => (" ", Style::default().fg(theme.context())),
+                LineType::Context => (" ", Style::default().fg(theme.context()), None),
                 LineType::Header => (
                     "@",
                     Style::default()
                         .fg(theme.header())
                         .add_modifier(Modifier::BOLD),
+                    None,
                 ),
             };
 
-            // Format the complete line
-            let content = format!("{}{} {}", line_number_str, prefix, diff_line.content);
-            lines.push(Line::from(Span::styled(content, style)));
+            // Build the line with syntax highlighting if available
+            let formatted_line = if matches!(diff_line.line_type, LineType::Header) {
+                // Don't syntax highlight header lines
+                vec![Span::styled(
+                    format!("{line_number_str}{prefix} {}", diff_line.content),
+                    base_style,
+                )]
+            } else if let Some(ref highlighter) = self.syntax_highlighter {
+                let mut spans = Vec::new();
+
+                // Add line numbers and prefix with base style
+                spans.push(Span::styled(
+                    format!("{line_number_str}{prefix} "),
+                    base_style,
+                ));
+
+                // Apply syntax highlighting to the code content
+                let highlighted_spans = highlighter.highlight_line(&diff_line.content);
+
+                for (syntax_style, text) in highlighted_spans {
+                    // Convert syntect style to ratatui style
+                    let mut span_style = syntect_style_to_ratatui_style(&syntax_style);
+
+                    // Apply the diff background color if present
+                    if let Some(bg) = background_color {
+                        span_style = span_style.bg(bg);
+                    }
+
+                    // For additions and deletions, blend the syntax highlighting with diff colors
+                    if matches!(diff_line.line_type, LineType::Addition | LineType::Deletion) {
+                        // Keep the syntax highlighting foreground but make it slightly brighter/dimmer
+                        // based on whether it's an addition or deletion
+                        if diff_line.line_type == LineType::Addition {
+                            // Make additions slightly brighter
+                            if let Color::Rgb(r, g, b) = span_style.fg.unwrap_or(theme.fg()) {
+                                span_style = span_style.fg(Color::Rgb(
+                                    (r as u16 + 20).min(255) as u8,
+                                    (g as u16 + 30).min(255) as u8,
+                                    (b as u16 + 20).min(255) as u8,
+                                ));
+                            }
+                        }
+                    }
+
+                    spans.push(Span::styled(text, span_style));
+                }
+
+                spans
+            } else {
+                // No syntax highlighting available, use the base style
+                vec![Span::styled(
+                    format!("{line_number_str}{prefix} {}", diff_line.content),
+                    if let Some(bg) = background_color {
+                        base_style.bg(bg)
+                    } else {
+                        base_style
+                    },
+                )]
+            };
+
+            lines.push(Line::from(formatted_line));
         }
 
         if lines.is_empty() {
