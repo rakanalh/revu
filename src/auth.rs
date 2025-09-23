@@ -5,10 +5,9 @@ use std::path::PathBuf;
 
 /// Represents authentication credentials from .authinfo/.netrc
 #[derive(Debug, Clone)]
-pub struct AuthInfo {
-    pub machine: String,
-    pub login: String,
-    pub password: String,
+struct AuthInfo {
+    machine: String,
+    password: String,
 }
 
 /// Attempts to find GitHub token from multiple sources with priority ordering
@@ -19,8 +18,20 @@ pub fn get_github_token(cli_token: Option<String>) -> Result<Option<String>> {
     }
 
     // 2. Second priority: ~/.authinfo or ~/.netrc file
-    if let Ok(Some(token)) = read_authinfo_token() {
-        return Ok(Some(token));
+    match read_authinfo_token() {
+        Ok(Some(token)) => return Ok(Some(token)),
+        Ok(None) => {
+            // File exists but no matching entry found
+            if std::env::var("REVU_DEBUG").is_ok() {
+                eprintln!("Debug: authinfo file found but no entry for machine api.github.com with login ending in ^revu");
+            }
+        }
+        Err(e) => {
+            // Error reading file
+            if std::env::var("REVU_DEBUG").is_ok() {
+                eprintln!("Debug: Error reading authinfo: {}", e);
+            }
+        }
     }
 
     // 3. Third priority: GITHUB_TOKEN environment variable
@@ -32,7 +43,7 @@ pub fn get_github_token(cli_token: Option<String>) -> Result<Option<String>> {
 }
 
 /// Reads GitHub token from ~/.authinfo or ~/.netrc file
-/// Looks for entries matching: machine api.github.com login USERNAME^revu password TOKEN
+/// Looks for entries matching: machine api.github.com login USERNAME password TOKEN
 fn read_authinfo_token() -> Result<Option<String>> {
     // Try ~/.authinfo first, then ~/.netrc
     let home = std::env::var("HOME").context("HOME environment variable not set")?;
@@ -68,71 +79,80 @@ fn read_authinfo_token() -> Result<Option<String>> {
         let contents = fs::read_to_string(&path)
             .with_context(|| format!("Failed to read {}", path.display()))?;
 
-        if let Some(auth) = parse_authinfo(&contents)? {
-            if auth.machine == "api.github.com" && auth.login.ends_with("^revu") {
+        // Parse all entries and find the one we want
+        let entries = parse_all_authinfo(&contents)?;
+        for auth in entries {
+            // Just look for api.github.com, regardless of login suffix
+            if auth.machine == "api.github.com" {
                 return Ok(Some(auth.password));
             }
+        }
+
+        if std::env::var("REVU_DEBUG").is_ok() {
+            eprintln!("Debug: Found {} entries in {}, but none match api.github.com",
+                     parse_all_authinfo(&contents)?.len(), path.display());
         }
     }
 
     Ok(None)
 }
 
-/// Parses .authinfo/.netrc file format
+/// Parses all entries from .authinfo/.netrc file format
 /// Format: machine HOSTNAME login USERNAME password PASSWORD
-fn parse_authinfo(contents: &str) -> Result<Option<AuthInfo>> {
+fn parse_all_authinfo(contents: &str) -> Result<Vec<AuthInfo>> {
+    let mut entries = Vec::new();
     let mut machine: Option<String> = None;
-    let mut login: Option<String> = None;
+    let mut has_login = false;
     let mut password: Option<String> = None;
     let mut current_field: Option<&str> = None;
 
     for token in contents.split_whitespace() {
         match token {
-            "machine" => current_field = Some("machine"),
-            "login" => current_field = Some("login"),
+            "machine" => {
+                // If we have a complete entry, save it
+                if let (Some(m), Some(p)) = (&machine, &password) {
+                    if has_login {
+                        entries.push(AuthInfo {
+                            machine: m.clone(),
+                            password: p.clone(),
+                        });
+                    }
+                }
+                // Start new entry
+                machine = None;
+                has_login = false;
+                password = None;
+                current_field = Some("machine");
+            }
+            "login" => {
+                has_login = true;
+                current_field = Some("login");
+            }
             "password" => current_field = Some("password"),
             _ => {
                 match current_field {
-                    Some("machine") => {
-                        // If we already have a complete entry, check if it's what we want
-                        if machine.is_some() && login.is_some() && password.is_some() {
-                            if let (Some(m), Some(l), Some(p)) = (&machine, &login, &password) {
-                                if m == "api.github.com" && l.ends_with("^revu") {
-                                    return Ok(Some(AuthInfo {
-                                        machine: m.clone(),
-                                        login: l.clone(),
-                                        password: p.clone(),
-                                    }));
-                                }
-                            }
-                        }
-                        // Start new entry
-                        machine = Some(token.to_string());
-                        login = None;
-                        password = None;
-                    }
-                    Some("login") => login = Some(token.to_string()),
+                    Some("machine") => machine = Some(token.to_string()),
+                    Some("login") => {}, // Skip the login value, we don't need it
                     Some("password") => password = Some(token.to_string()),
                     _ => {}
                 }
-                current_field = None;
             }
         }
     }
 
-    // Check the last entry if we have one
-    if let (Some(m), Some(l), Some(p)) = (machine, login, password) {
-        if m == "api.github.com" && l.ends_with("^revu") {
-            return Ok(Some(AuthInfo {
+    // Don't forget the last entry
+    if let (Some(m), Some(p)) = (machine, password) {
+        if has_login {
+            entries.push(AuthInfo {
                 machine: m,
-                login: l,
                 password: p,
-            }));
+            });
         }
     }
 
-    Ok(None)
+    Ok(entries)
 }
+
 
 #[cfg(test)]
 mod tests {
@@ -140,12 +160,11 @@ mod tests {
 
     #[test]
     fn test_parse_authinfo_basic() {
-        let content = "machine api.github.com login myuser^revu password ghp_token123";
-        let result = parse_authinfo(content).unwrap();
-        assert!(result.is_some());
-        let auth = result.unwrap();
+        let content = "machine api.github.com login myuser password ghp_token123";
+        let result = parse_all_authinfo(content).unwrap();
+        assert_eq!(result.len(), 1);
+        let auth = &result[0];
         assert_eq!(auth.machine, "api.github.com");
-        assert_eq!(auth.login, "myuser^revu");
         assert_eq!(auth.password, "ghp_token123");
     }
 
@@ -153,43 +172,35 @@ mod tests {
     fn test_parse_authinfo_multiple_entries() {
         let content = r#"
             machine example.com login user1 password pass1
-            machine api.github.com login myuser^revu password ghp_token123
+            machine api.github.com login myuser password ghp_token123
             machine other.com login user2 password pass2
         "#;
-        let result = parse_authinfo(content).unwrap();
-        assert!(result.is_some());
-        let auth = result.unwrap();
-        assert_eq!(auth.machine, "api.github.com");
-        assert_eq!(auth.login, "myuser^revu");
-        assert_eq!(auth.password, "ghp_token123");
-    }
-
-    #[test]
-    fn test_parse_authinfo_no_revu_suffix() {
-        let content = "machine api.github.com login myuser password ghp_token123";
-        let result = parse_authinfo(content).unwrap();
-        assert!(result.is_none());
-    }
-
-    #[test]
-    fn test_parse_authinfo_wrong_machine() {
-        let content = "machine github.com login myuser^revu password ghp_token123";
-        let result = parse_authinfo(content).unwrap();
-        assert!(result.is_none());
+        let result = parse_all_authinfo(content).unwrap();
+        assert_eq!(result.len(), 3);
+        // Find the GitHub entry
+        let github_auth = result.iter().find(|a| a.machine == "api.github.com").unwrap();
+        assert_eq!(github_auth.password, "ghp_token123");
     }
 
     #[test]
     fn test_parse_authinfo_multiline() {
         let content = r#"
 machine api.github.com
-login myuser^revu
+login myuser
 password ghp_token123
 "#;
-        let result = parse_authinfo(content).unwrap();
-        assert!(result.is_some());
-        let auth = result.unwrap();
+        let result = parse_all_authinfo(content).unwrap();
+        assert_eq!(result.len(), 1);
+        let auth = &result[0];
         assert_eq!(auth.machine, "api.github.com");
-        assert_eq!(auth.login, "myuser^revu");
         assert_eq!(auth.password, "ghp_token123");
+    }
+
+    #[test]
+    fn test_parse_authinfo_no_login() {
+        // Entry without login field should be skipped
+        let content = "machine api.github.com password ghp_token123";
+        let result = parse_all_authinfo(content).unwrap();
+        assert_eq!(result.len(), 0);
     }
 }
