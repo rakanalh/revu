@@ -1,0 +1,42 @@
+# Gruvbox Light Theme
+# A retro groove color scheme - light variant
+
+# UI colors
+background = "#fbf1c7"
+foreground = "#3c3836"
+border = "#bdae93"
+border_focused = "#b57614"
+title = "#cc241d"
+subtitle = "#665c54"
+
+# Diff colors
+added = "#79740e"
+removed = "#cc241d"
+modified = "#b57614"
+context = "#7c6f64"
+header = "#076678"
+
+# Status colors
+info = "#076678"
+warning = "#b57614"
+error = "#cc241d"
+success = "#79740e"
+
+# Selection colors
+selection_bg = "#ebdbb2"
+selection_fg = "#3c3836"
+cursor = "#af3a03"
+
+# Navigation colors
+nav_bg = "#f9f5d7"
+nav_fg = "#504945"
+nav_active = "#8f3f71"
+
+# Sidebar colors
+sidebar_bg = "#f2e5bc"
+sidebar_fg = "#504945"
+sidebar_selected = "#d5c4a1"
+
+# Scrollbar
+scrollbar = "#d5c4a1"
+scrollbar_thumb = "#a89984"

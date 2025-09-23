@@ -1,0 +1,42 @@
+# Dracula Theme
+# A dark theme for many editors, shells, and more
+
+# UI colors
+background = "#282a36"
+foreground = "#f8f8f2"
+border = "#44475a"
+border_focused = "#bd93f9"
+title = "#ff79c6"
+subtitle = "#6272a4"
+
+# Diff colors
+added = "#50fa7b"
+removed = "#ff5555"
+modified = "#ffb86c"
+context = "#6272a4"
+header = "#8be9fd"
+
+# Status colors
+info = "#8be9fd"
+warning = "#f1fa8c"
+error = "#ff5555"
+success = "#50fa7b"
+
+# Selection colors
+selection_bg = "#44475a"
+selection_fg = "#f8f8f2"
+cursor = "#ff79c6"
+
+# Navigation colors
+nav_bg = "#21222c"
+nav_fg = "#f8f8f2"
+nav_active = "#bd93f9"
+
+# Sidebar colors
+sidebar_bg = "#191a21"
+sidebar_fg = "#6272a4"
+sidebar_selected = "#44475a"
+
+# Scrollbar
+scrollbar = "#44475a"
+scrollbar_thumb = "#6272a4"

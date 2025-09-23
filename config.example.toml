@@ -1,0 +1,59 @@
+# Revu Configuration File
+# Copy this file to ~/.config/revu/config.toml and customize as needed
+
+# Theme settings
+theme = "catppuccin-mocha"
+show_line_numbers = true
+vim_mode = false
+
+# Key Bindings Configuration
+# Each action can have multiple keys mapped to it
+# Available key formats:
+#   - Single character: "a", "b", "1"
+#   - Special keys: "Tab", "Enter", "Esc", "Space", "Backspace"
+#   - Arrow keys: "Up", "Down", "Left", "Right"
+#   - Function keys: "F1", "F2", ..., "F12"
+#   - Page navigation: "PageUp", "PageDown", "Home", "End"
+#   - Modified keys: "Ctrl+c", "Alt+x", "Shift+A"
+
+[keybindings]
+# Commits navigation (vim-style h/l as primary, arrows and p/n as alternatives)
+prev_commit = ["h", "Left", "p"]
+next_commit = ["l", "Right", "n"]
+
+# File navigation (vim-style j/k with arrow alternatives)
+navigate_up = ["k", "Up"]
+navigate_down = ["j", "Down"]
+
+# Scrolling
+page_up = ["b", "PageUp"]
+page_down = ["Space", "PageDown"]
+scroll_up = ["u"]
+scroll_down = ["d"]
+
+# Jump to top/bottom
+go_to_top = ["g", "Home"]
+go_to_bottom = ["G", "End"]
+
+# Actions
+quit = ["q", "Esc", "Ctrl+c"]
+toggle_focus = ["Tab"]
+cycle_theme = ["t", "T"]
+refresh = ["r", "F5"]
+
+# Alternative minimal vim-only configuration:
+# [keybindings]
+# prev_commit = ["h"]
+# next_commit = ["l"]
+# navigate_up = ["k"]
+# navigate_down = ["j"]
+# page_up = ["b"]
+# page_down = ["Space"]
+# scroll_up = ["u"]
+# scroll_down = ["d"]
+# go_to_top = ["g"]
+# go_to_bottom = ["G"]
+# quit = ["q", "Esc"]
+# toggle_focus = ["Tab"]
+# cycle_theme = ["t"]
+# refresh = ["r"]

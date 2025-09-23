@@ -1,0 +1,42 @@
+# Tokyo Night Theme
+# A clean, dark theme that celebrates the lights of Tokyo at night
+
+# UI colors
+background = "#1a1b26"
+foreground = "#a9b1d6"
+border = "#414868"
+border_focused = "#7aa2f7"
+title = "#bb9af7"
+subtitle = "#565f89"
+
+# Diff colors
+added = "#9ece6a"
+removed = "#f7768e"
+modified = "#e0af68"
+context = "#565f89"
+header = "#7dcfff"
+
+# Status colors
+info = "#7aa2f7"
+warning = "#e0af68"
+error = "#f7768e"
+success = "#9ece6a"
+
+# Selection colors
+selection_bg = "#283457"
+selection_fg = "#c0caf5"
+cursor = "#bb9af7"
+
+# Navigation colors
+nav_bg = "#16161e"
+nav_fg = "#a9b1d6"
+nav_active = "#bb9af7"
+
+# Sidebar colors
+sidebar_bg = "#15161e"
+sidebar_fg = "#787c99"
+sidebar_selected = "#2a2b3d"
+
+# Scrollbar
+scrollbar = "#2a2b3d"
+scrollbar_thumb = "#414868"

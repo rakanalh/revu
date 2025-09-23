@@ -1,0 +1,42 @@
+# Catppuccin Mocha Theme
+# A soothing pastel theme for the high-spirited
+
+# UI colors
+background = "#1e1e2e"
+foreground = "#cdd6f4"
+border = "#585b70"
+border_focused = "#89b4fa"
+title = "#f5e0dc"
+subtitle = "#a6adc8"
+
+# Diff colors
+added = "#a6e3a1"
+removed = "#f38ba8"
+modified = "#fab387"
+context = "#6c7086"
+header = "#89dceb"
+
+# Status colors
+info = "#89b4fa"
+warning = "#f9e2af"
+error = "#f38ba8"
+success = "#a6e3a1"
+
+# Selection colors
+selection_bg = "#313244"
+selection_fg = "#cdd6f4"
+cursor = "#f5e0dc"
+
+# Navigation colors
+nav_bg = "#181825"
+nav_fg = "#bac2de"
+nav_active = "#cba6f7"
+
+# Sidebar colors
+sidebar_bg = "#11111b"
+sidebar_fg = "#a6adc8"
+sidebar_selected = "#45475a"
+
+# Scrollbar
+scrollbar = "#313244"
+scrollbar_thumb = "#585b70"

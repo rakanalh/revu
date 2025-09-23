@@ -1,0 +1,42 @@
+# Gruvbox Dark Theme
+# A retro groove color scheme
+
+# UI colors
+background = "#282828"
+foreground = "#ebdbb2"
+border = "#504945"
+border_focused = "#fabd2f"
+title = "#fb4934"
+subtitle = "#a89984"
+
+# Diff colors
+added = "#b8bb26"
+removed = "#fb4934"
+modified = "#fabd2f"
+context = "#928374"
+header = "#83a598"
+
+# Status colors
+info = "#83a598"
+warning = "#fabd2f"
+error = "#fb4934"
+success = "#b8bb26"
+
+# Selection colors
+selection_bg = "#3c3836"
+selection_fg = "#ebdbb2"
+cursor = "#fe8019"
+
+# Navigation colors
+nav_bg = "#1d2021"
+nav_fg = "#d5c4a1"
+nav_active = "#d3869b"
+
+# Sidebar colors
+sidebar_bg = "#1d2021"
+sidebar_fg = "#bdae93"
+sidebar_selected = "#3c3836"
+
+# Scrollbar
+scrollbar = "#3c3836"
+scrollbar_thumb = "#665c54"

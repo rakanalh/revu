@@ -1,0 +1,42 @@
+# Solarized Light Theme
+# Precision colors for machines and people - light variant
+
+# UI colors
+background = "#fdf6e3"
+foreground = "#657b83"
+border = "#eee8d5"
+border_focused = "#268bd2"
+title = "#cb4b16"
+subtitle = "#93a1a1"
+
+# Diff colors
+added = "#859900"
+removed = "#dc322f"
+modified = "#b58900"
+context = "#93a1a1"
+header = "#2aa198"
+
+# Status colors
+info = "#268bd2"
+warning = "#b58900"
+error = "#dc322f"
+success = "#859900"
+
+# Selection colors
+selection_bg = "#eee8d5"
+selection_fg = "#586e75"
+cursor = "#d33682"
+
+# Navigation colors
+nav_bg = "#eee8d5"
+nav_fg = "#657b83"
+nav_active = "#6c71c4"
+
+# Sidebar colors
+sidebar_bg = "#eee8d5"
+sidebar_fg = "#839496"
+sidebar_selected = "#d3cbb7"
+
+# Scrollbar
+scrollbar = "#eee8d5"
+scrollbar_thumb = "#93a1a1"

@@ -1,0 +1,42 @@
+# Solarized Dark Theme
+# Precision colors for machines and people
+
+# UI colors
+background = "#002b36"
+foreground = "#839496"
+border = "#073642"
+border_focused = "#268bd2"
+title = "#cb4b16"
+subtitle = "#586e75"
+
+# Diff colors
+added = "#859900"
+removed = "#dc322f"
+modified = "#b58900"
+context = "#586e75"
+header = "#2aa198"
+
+# Status colors
+info = "#268bd2"
+warning = "#b58900"
+error = "#dc322f"
+success = "#859900"
+
+# Selection colors
+selection_bg = "#073642"
+selection_fg = "#93a1a1"
+cursor = "#d33682"
+
+# Navigation colors
+nav_bg = "#001b1f"
+nav_fg = "#839496"
+nav_active = "#6c71c4"
+
+# Sidebar colors
+sidebar_bg = "#001b1f"
+sidebar_fg = "#657b83"
+sidebar_selected = "#073642"
+
+# Scrollbar
+scrollbar = "#073642"
+scrollbar_thumb = "#586e75"

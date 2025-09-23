@@ -1,0 +1,42 @@
+# One Dark Theme
+# Atom's iconic One Dark theme
+
+# UI colors
+background = "#282c34"
+foreground = "#abb2bf"
+border = "#3e4451"
+border_focused = "#61afef"
+title = "#e06c75"
+subtitle = "#5c6370"
+
+# Diff colors
+added = "#98c379"
+removed = "#e06c75"
+modified = "#e5c07b"
+context = "#5c6370"
+header = "#56b6c2"
+
+# Status colors
+info = "#61afef"
+warning = "#e5c07b"
+error = "#e06c75"
+success = "#98c379"
+
+# Selection colors
+selection_bg = "#3e4451"
+selection_fg = "#abb2bf"
+cursor = "#c678dd"
+
+# Navigation colors
+nav_bg = "#21252b"
+nav_fg = "#abb2bf"
+nav_active = "#c678dd"
+
+# Sidebar colors
+sidebar_bg = "#21252b"
+sidebar_fg = "#9196a1"
+sidebar_selected = "#323842"
+
+# Scrollbar
+scrollbar = "#3e4451"
+scrollbar_thumb = "#5c6370"
