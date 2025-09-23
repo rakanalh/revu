@@ -1540,6 +1540,8 @@ dependencies = [
  "chrono",
  "clap",
  "crossterm",
+ "futures",
+ "lru",
  "octocrab",
  "once_cell",
  "ratatui",

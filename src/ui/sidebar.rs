@@ -112,4 +112,33 @@ impl Sidebar {
     pub fn get_selected_file(&self) -> Option<&FileChange> {
         self.state.selected().and_then(|i| self.files.get(i))
     }
+
+    pub fn get_selected_index(&self) -> Option<usize> {
+        self.state.selected()
+    }
+
+    pub fn update_file(&mut self, index: usize, file: FileChange) {
+        if index < self.files.len() {
+            self.files[index] = file;
+        }
+    }
+
+    pub fn update_files(&mut self, files: Vec<FileChange>) {
+        self.files = files;
+        // Preserve selection if possible
+        if let Some(selected) = self.state.selected() {
+            if selected >= self.files.len() {
+                // Selection is out of bounds, select last file or none
+                if !self.files.is_empty() {
+                    self.state.select(Some(self.files.len() - 1));
+                } else {
+                    self.state.select(None);
+                }
+            }
+            // Otherwise keep the current selection
+        } else if !self.files.is_empty() {
+            // No selection, select first file
+            self.state.select(Some(0));
+        }
+    }
 }

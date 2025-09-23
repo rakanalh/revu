@@ -1,6 +1,8 @@
 use crate::github::models::{DiffContent, DiffHunk, DiffLine, FileChange, FileStatus, LineType};
 use anyhow::Result;
+use futures::stream::{self, StreamExt};
 use regex::Regex;
+use std::sync::Arc;
 
 pub struct DiffParser;
 
@@ -163,6 +165,47 @@ impl DiffParser {
         })
     }
 
+    /// Enrich a single file with diff content
+    pub async fn enrich_single_file(
+        file: &mut FileChange,
+        client: &crate::github::GitHubClient,
+        owner: &str,
+        repo: &str,
+        base_ref: &str,
+        head_ref: &str,
+    ) -> Result<()> {
+        // Get file content from both refs
+        let old_content = if file.status != FileStatus::Added {
+            client
+                .get_file_content(owner, repo, &file.filename, base_ref)
+                .await
+                .unwrap_or_default()
+        } else {
+            String::new()
+        };
+
+        let new_content = if file.status != FileStatus::Deleted {
+            client
+                .get_file_content(owner, repo, &file.filename, head_ref)
+                .await
+                .unwrap_or_default()
+        } else {
+            String::new()
+        };
+
+        // Generate full file diff view
+        let diff_content = if let Some(ref patch) = file.patch {
+            Self::create_full_file_diff(&old_content, &new_content, patch)?
+        } else {
+            Self::create_full_file_diff(&old_content, &new_content, "")?
+        };
+
+        file.raw_content = Some(new_content.clone());
+        file.diff_content = Some(diff_content);
+
+        Ok(())
+    }
+
     pub async fn enrich_file_changes(
         files: &mut [FileChange],
         client: &crate::github::GitHubClient,
@@ -171,35 +214,77 @@ impl DiffParser {
         base_ref: &str,
         head_ref: &str,
     ) -> Result<()> {
-        for file in files.iter_mut() {
-            // Get file content from both refs
-            let old_content = if file.status != FileStatus::Added {
-                client
-                    .get_file_content(owner, repo, &file.filename, base_ref)
-                    .await
-                    .unwrap_or_default()
-            } else {
-                String::new()
-            };
+        // Process files in batches of 10 to respect rate limits
+        const BATCH_SIZE: usize = 10;
+        let client = Arc::new(client.clone());
 
-            let new_content = if file.status != FileStatus::Deleted {
-                client
-                    .get_file_content(owner, repo, &file.filename, head_ref)
-                    .await
-                    .unwrap_or_default()
-            } else {
-                String::new()
-            };
+        for chunk in files.chunks_mut(BATCH_SIZE) {
+            // Create futures for fetching file contents in parallel
+            let futures: Vec<_> = chunk
+                .iter()
+                .map(|file| {
+                    let client = Arc::clone(&client);
+                    let owner = owner.to_string();
+                    let repo = repo.to_string();
+                    let filename = file.filename.clone();
+                    let status = file.status.clone();
+                    let base_ref = base_ref.to_string();
+                    let head_ref = head_ref.to_string();
 
-            // Generate full file diff view
-            let diff_content = if let Some(ref patch) = file.patch {
-                Self::create_full_file_diff(&old_content, &new_content, patch)?
-            } else {
-                Self::create_full_file_diff(&old_content, &new_content, "")?
-            };
+                    async move {
+                        // Fetch old content if not a new file
+                        let old_content_future = if status != FileStatus::Added {
+                            Some(client.get_file_content(&owner, &repo, &filename, &base_ref))
+                        } else {
+                            None
+                        };
 
-            file.raw_content = Some(new_content.clone());
-            file.diff_content = Some(diff_content);
+                        // Fetch new content if not a deleted file
+                        let new_content_future = if status != FileStatus::Deleted {
+                            Some(client.get_file_content(&owner, &repo, &filename, &head_ref))
+                        } else {
+                            None
+                        };
+
+                        // Execute both futures concurrently
+                        let (old_content, new_content) =
+                            match (old_content_future, new_content_future) {
+                                (Some(old_fut), Some(new_fut)) => {
+                                    let (old, new) = tokio::join!(old_fut, new_fut);
+                                    (old.unwrap_or_default(), new.unwrap_or_default())
+                                }
+                                (Some(old_fut), None) => {
+                                    (old_fut.await.unwrap_or_default(), String::new())
+                                }
+                                (None, Some(new_fut)) => {
+                                    (String::new(), new_fut.await.unwrap_or_default())
+                                }
+                                (None, None) => (String::new(), String::new()),
+                            };
+
+                        (old_content, new_content)
+                    }
+                })
+                .collect();
+
+            // Execute all futures in parallel and collect results
+            let results: Vec<(String, String)> = stream::iter(futures)
+                .buffer_unordered(BATCH_SIZE)
+                .collect()
+                .await;
+
+            // Apply results to the files
+            for (file, (old_content, new_content)) in chunk.iter_mut().zip(results) {
+                // Generate full file diff view
+                let diff_content = if let Some(ref patch) = file.patch {
+                    Self::create_full_file_diff(&old_content, &new_content, patch)?
+                } else {
+                    Self::create_full_file_diff(&old_content, &new_content, "")?
+                };
+
+                file.raw_content = Some(new_content.clone());
+                file.diff_content = Some(diff_content);
+            }
         }
 
         Ok(())

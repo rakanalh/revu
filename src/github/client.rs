@@ -1,4 +1,5 @@
 use super::models::*;
+use crate::cache::{FileCacheKey, FileContentCache};
 use anyhow::{Context, Result};
 use octocrab::Octocrab;
 use regex::Regex;
@@ -8,6 +9,7 @@ use reqwest;
 pub struct GitHubClient {
     client: Option<Octocrab>,
     token: Option<String>,
+    cache: FileContentCache,
 }
 
 impl GitHubClient {
@@ -19,7 +21,11 @@ impl GitHubClient {
             None
         };
 
-        Ok(Self { client, token })
+        Ok(Self {
+            client,
+            token,
+            cache: FileContentCache::new(100),
+        })
     }
 
     pub fn parse_pr_url(url: &str) -> Result<ParsedPrUrl> {
@@ -237,6 +243,19 @@ impl GitHubClient {
         path: &str,
         r#ref: &str,
     ) -> Result<String> {
+        // Check cache first
+        let cache_key = FileCacheKey {
+            owner: owner.to_string(),
+            repo: repo.to_string(),
+            path: path.to_string(),
+            sha: r#ref.to_string(),
+        };
+
+        if let Some(cached_content) = self.cache.get(&cache_key).await {
+            return Ok(cached_content);
+        }
+
+        // Not in cache, fetch from GitHub
         let url = format!(
             "https://raw.githubusercontent.com/{owner}/{repo}/{ref}/{path}",
             r#ref = r#ref
@@ -259,7 +278,15 @@ impl GitHubClient {
             return Ok(String::new());
         }
 
-        response.text().await.context("Failed to read file content")
+        let content = response
+            .text()
+            .await
+            .context("Failed to read file content")?;
+
+        // Cache the content
+        self.cache.put(cache_key, content.clone()).await;
+
+        Ok(content)
     }
 
     pub async fn get_commit_files(

@@ -1,5 +1,6 @@
 mod app;
 mod auth;
+mod cache;
 mod diff;
 mod events;
 mod github;
@@ -177,6 +178,16 @@ async fn run_app<B: ratatui::backend::Backend>(
                                 // Load files for first commit
                                 if !app.commits.is_empty() {
                                     if let Ok(()) = app.load_commit_files(0).await {
+                                        // Load the first file's diff content for immediate display
+                                        if !app.files.is_empty() {
+                                            let _ = app.load_file_diff(0).await;
+                                            // Update diff view with the loaded content
+                                            if let Some(ref sidebar) = app.sidebar {
+                                                if let Some(file) = sidebar.get_selected_file() {
+                                                    app.diff_view.set_file(Some(file.clone()));
+                                                }
+                                            }
+                                        }
                                         app.state = AppState::Ready;
                                     } else {
                                         app.state = AppState::Error(
@@ -255,10 +266,10 @@ async fn run_app<B: ratatui::backend::Backend>(
                                 app.toggle_focus();
                             }
                             Action::NavigateUp => {
-                                app.handle_navigate_up();
+                                app.handle_navigate_up().await?;
                             }
                             Action::NavigateDown => {
-                                app.handle_navigate_down();
+                                app.handle_navigate_down().await?;
                             }
                             Action::NextCommit => {
                                 app.handle_next_commit().await?;

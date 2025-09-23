@@ -1,6 +1,7 @@
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 use syntect::easy::HighlightLines;
 use syntect::highlighting::{Style as SyntectStyle, ThemeSet};
 use syntect::parsing::{SyntaxReference, SyntaxSet};
@@ -116,9 +117,11 @@ static EXTENSION_CACHE: Lazy<HashMap<String, String>> = Lazy::new(|| {
     cache
 });
 
+#[derive(Clone)]
 pub struct SyntaxHighlighter {
     syntax: Option<SyntaxReference>,
     theme_name: String,
+    highlighter: Arc<Mutex<Option<HighlightLines<'static>>>>,
 }
 
 /// Map app theme names to appropriate syntect themes
@@ -151,31 +154,75 @@ impl SyntaxHighlighter {
     pub fn with_theme(filename: &str, app_theme_name: &str) -> Self {
         let syntax = detect_syntax(filename);
         let syntect_theme = map_theme_to_syntect(app_theme_name);
+
+        // Create the highlighter if we have syntax
+        let highlighter = if let Some(syntax) = syntax {
+            let theme = &THEME_SET.themes[syntect_theme];
+            // We need to leak the references to make them 'static
+            // This is safe because SYNTAX_SET and THEME_SET are static
+            let syntax_ref: &'static SyntaxReference = unsafe {
+                std::mem::transmute::<&SyntaxReference, &'static SyntaxReference>(syntax)
+            };
+            let theme_ref: &'static syntect::highlighting::Theme = unsafe {
+                std::mem::transmute::<
+                    &syntect::highlighting::Theme,
+                    &'static syntect::highlighting::Theme,
+                >(theme)
+            };
+            Arc::new(Mutex::new(Some(HighlightLines::new(syntax_ref, theme_ref))))
+        } else {
+            Arc::new(Mutex::new(None))
+        };
+
         Self {
             syntax: syntax.cloned(),
             theme_name: syntect_theme.to_string(),
+            highlighter,
         }
     }
 
     /// Highlight a line of code
     pub fn highlight_line(&self, line: &str) -> Vec<(SyntectStyle, String)> {
-        let Some(ref syntax) = self.syntax else {
-            // Return the line as-is if no syntax is available
-            return vec![(SyntectStyle::default(), line.to_string())];
-        };
+        let mut highlighter_guard = self.highlighter.lock().unwrap();
 
-        let theme = &THEME_SET.themes[&self.theme_name];
-        let mut highlighter = HighlightLines::new(syntax, theme);
+        if let Some(ref mut highlighter) = *highlighter_guard {
+            // Highlight the line with the cached highlighter
+            match highlighter.highlight_line(line, &SYNTAX_SET) {
+                Ok(highlighted) => highlighted
+                    .into_iter()
+                    .map(|(style, text)| (style, text.to_string()))
+                    .collect(),
+                Err(_) => {
+                    // On error, return the line as-is
+                    vec![(SyntectStyle::default(), line.to_string())]
+                }
+            }
+        } else {
+            // No syntax available, return the line as-is
+            vec![(SyntectStyle::default(), line.to_string())]
+        }
+    }
 
-        // Highlight the line
-        match highlighter.highlight_line(line, &SYNTAX_SET) {
-            Ok(highlighted) => highlighted
-                .into_iter()
-                .map(|(style, text)| (style, text.to_string()))
-                .collect(),
-            Err(_) => {
-                // On error, return the line as-is
-                vec![(SyntectStyle::default(), line.to_string())]
+    /// Reset the highlighter state (useful when switching between non-contiguous sections)
+    #[allow(dead_code)]
+    pub fn reset(&self) {
+        let mut highlighter_guard = self.highlighter.lock().unwrap();
+
+        if highlighter_guard.is_some() {
+            // Recreate the highlighter to reset its state
+            if let Some(ref syntax) = self.syntax {
+                let theme = &THEME_SET.themes[&self.theme_name];
+                // Safe because SYNTAX_SET and THEME_SET are static
+                let syntax_ref: &'static SyntaxReference = unsafe {
+                    std::mem::transmute::<&SyntaxReference, &'static SyntaxReference>(syntax)
+                };
+                let theme_ref: &'static syntect::highlighting::Theme = unsafe {
+                    std::mem::transmute::<
+                        &syntect::highlighting::Theme,
+                        &'static syntect::highlighting::Theme,
+                    >(theme)
+                };
+                *highlighter_guard = Some(HighlightLines::new(syntax_ref, theme_ref));
             }
         }
     }

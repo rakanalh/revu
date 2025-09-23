@@ -1,4 +1,5 @@
 use crate::{
+    cache::DiffCache,
     diff::DiffParser,
     github::{Commit, FileChange, GitHubClient, PullRequest},
     settings::Settings,
@@ -6,6 +7,8 @@ use crate::{
     ui::{DiffView, Navigation, Sidebar},
 };
 use anyhow::Result;
+use futures::future::join_all;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum FocusedPane {
@@ -94,6 +97,12 @@ pub struct App {
     pub settings: Settings,
     pub theme: Theme,
     pub focused_pane: FocusedPane,
+    /// Cache of commit files indexed by commit SHA
+    commit_files_cache: HashMap<String, Vec<FileChange>>,
+    /// All files changed in the PR (fetched once)
+    pr_files: Option<Vec<FileChange>>,
+    /// Cache for diff contents
+    diff_cache: DiffCache,
 }
 
 impl App {
@@ -126,6 +135,9 @@ impl App {
             settings,
             theme,
             focused_pane: FocusedPane::Sidebar,
+            commit_files_cache: HashMap::new(),
+            pr_files: None,
+            diff_cache: DiffCache::new(50),
         })
     }
 
@@ -161,16 +173,34 @@ impl App {
         loading_status.update_step(2, LoadingStepStatus::Completed);
         loading_status.steps[2].name = format!("Loading commits ({commit_count} found)");
 
-        // Load files for the first commit
+        // Fetch all PR files once (for optimization)
+        loading_status.update_step(3, LoadingStepStatus::InProgress);
+        loading_status.set_current_message("Fetching all PR file changes...".to_string());
+        self.state = AppState::Loading(loading_status.clone());
+
+        let pr_files = self
+            .client
+            .get_pr_files(&self.owner, &self.repo, self.pr_number)
+            .await?;
+        self.pr_files = Some(pr_files);
+
+        loading_status.update_step(3, LoadingStepStatus::Completed);
+
+        // Pre-fetch commit files for better performance
         if !self.commits.is_empty() {
-            loading_status.update_step(3, LoadingStepStatus::InProgress);
-            loading_status
-                .set_current_message("Fetching file changes for first commit...".to_string());
+            loading_status.update_step(4, LoadingStepStatus::InProgress);
+            loading_status.set_current_message("Pre-fetching commit files...".to_string());
             self.state = AppState::Loading(loading_status.clone());
 
+            // Pre-fetch first few commits in parallel for faster initial experience
+            // We'll fetch the rest in the background
+            self.prefetch_commit_files_parallel(5).await?;
+
+            // Now load the first commit's files for display
+            loading_status.set_current_message("Loading first commit...".to_string());
+            self.state = AppState::Loading(loading_status.clone());
             self.load_commit_files(0).await?;
 
-            loading_status.update_step(3, LoadingStepStatus::Completed);
             loading_status.update_step(4, LoadingStepStatus::Completed);
         }
 
@@ -185,13 +215,23 @@ impl App {
         };
     }
 
-    pub fn handle_navigate_up(&mut self) {
+    pub async fn handle_navigate_up(&mut self) -> Result<()> {
         match self.focused_pane {
             FocusedPane::Sidebar => {
-                if let Some(ref mut sidebar) = self.sidebar {
+                let selected_index = if let Some(ref mut sidebar) = self.sidebar {
                     sidebar.previous();
-                    if let Some(file) = sidebar.get_selected_file() {
-                        self.diff_view.set_file(Some(file.clone()));
+                    sidebar.get_selected_index()
+                } else {
+                    None
+                };
+
+                if let Some(index) = selected_index {
+                    // Always load the file's diff content when navigating
+                    self.load_file_diff(index).await?;
+                    if let Some(ref sidebar) = self.sidebar {
+                        if let Some(file) = sidebar.get_selected_file() {
+                            self.diff_view.set_file(Some(file.clone()));
+                        }
                     }
                 }
             }
@@ -199,15 +239,26 @@ impl App {
                 self.diff_view.scroll_up(1);
             }
         }
+        Ok(())
     }
 
-    pub fn handle_navigate_down(&mut self) {
+    pub async fn handle_navigate_down(&mut self) -> Result<()> {
         match self.focused_pane {
             FocusedPane::Sidebar => {
-                if let Some(ref mut sidebar) = self.sidebar {
+                let selected_index = if let Some(ref mut sidebar) = self.sidebar {
                     sidebar.next();
-                    if let Some(file) = sidebar.get_selected_file() {
-                        self.diff_view.set_file(Some(file.clone()));
+                    sidebar.get_selected_index()
+                } else {
+                    None
+                };
+
+                if let Some(index) = selected_index {
+                    // Always load the file's diff content when navigating
+                    self.load_file_diff(index).await?;
+                    if let Some(ref sidebar) = self.sidebar {
+                        if let Some(file) = sidebar.get_selected_file() {
+                            self.diff_view.set_file(Some(file.clone()));
+                        }
                     }
                 }
             }
@@ -215,6 +266,7 @@ impl App {
                 self.diff_view.scroll_down(1);
             }
         }
+        Ok(())
     }
 
     pub async fn handle_next_commit(&mut self) -> Result<()> {
@@ -241,17 +293,30 @@ impl App {
         // Load files for the current commit
         if let Some(ref nav) = self.navigation {
             let current_index = nav.get_current_index();
-            let mut loading_status = LoadingStatus::new();
-            loading_status.update_step(0, LoadingStepStatus::Completed);
-            loading_status.update_step(1, LoadingStepStatus::Completed);
-            loading_status.update_step(2, LoadingStepStatus::Completed);
-            loading_status.update_step(3, LoadingStepStatus::InProgress);
-            let index = current_index + 1;
-            let total = self.commits.len();
-            loading_status.set_current_message(format!("Loading commit {index} of {total}..."));
-            self.state = AppState::Loading(loading_status);
+
+            // Check if we have this commit cached
+            let commit_sha = &self.commits[current_index].sha;
+            let is_cached = self.commit_files_cache.contains_key(commit_sha);
+
+            // Only show loading status if we need to fetch from API
+            if !is_cached {
+                let mut loading_status = LoadingStatus::new();
+                loading_status.update_step(0, LoadingStepStatus::Completed);
+                loading_status.update_step(1, LoadingStepStatus::Completed);
+                loading_status.update_step(2, LoadingStepStatus::Completed);
+                loading_status.update_step(3, LoadingStepStatus::InProgress);
+                let index = current_index + 1;
+                let total = self.commits.len();
+                loading_status.set_current_message(format!("Loading commit {index} of {total}..."));
+                self.state = AppState::Loading(loading_status);
+            }
+
             self.load_commit_files(current_index).await?;
-            self.state = AppState::Ready;
+
+            // Only reset state if we showed loading
+            if !is_cached {
+                self.state = AppState::Ready;
+            }
         }
         Ok(())
     }
@@ -262,41 +327,108 @@ impl App {
         }
 
         let commit = &self.commits[commit_index];
-        let mut files = self
-            .client
-            .get_commit_files(&self.owner, &self.repo, &commit.sha)
-            .await?;
 
-        // Enrich files with diff content for this specific commit
-        if let Some(ref pr) = self.pr {
-            // For the first commit, compare with base
-            // For subsequent commits, compare with previous commit
-            let base_sha = if commit_index == 0 {
-                pr.base.sha.clone()
-            } else {
-                self.commits[commit_index - 1].sha.clone()
-            };
+        // First, check if we have cached files for this commit
+        let files = if let Some(cached_files) = self.commit_files_cache.get(&commit.sha) {
+            // Use cached files (instant!)
+            cached_files.clone()
+        } else if commit_index == self.commits.len() - 1 && self.pr_files.is_some() {
+            // For the last commit (all changes in PR), use PR files directly
+            let pr_files = self.pr_files.as_ref().unwrap().clone();
+            self.commit_files_cache.insert(commit.sha.clone(), pr_files.clone());
+            pr_files
+        } else {
+            // Need to fetch from API (only as last resort)
+            let fetched_files = self
+                .client
+                .get_commit_files(&self.owner, &self.repo, &commit.sha)
+                .await?;
 
-            DiffParser::enrich_file_changes(
-                &mut files,
-                &self.client,
-                &self.owner,
-                &self.repo,
-                &base_sha,
-                &commit.sha,
-            )
-            .await?;
+            // Cache for future use
+            self.commit_files_cache.insert(commit.sha.clone(), fetched_files.clone());
+            fetched_files
+        };
+
+        // Store files without enriching them yet (lazy loading)
+        self.files = files.clone();
+
+        // Reuse existing sidebar if possible, otherwise create new one
+        if let Some(ref mut sidebar) = self.sidebar {
+            sidebar.update_files(files);
+        } else {
+            self.sidebar = Some(Sidebar::new(files));
         }
 
-        self.files = files.clone();
-        self.sidebar = Some(Sidebar::new(files));
-
-        // Select first file by default
+        // Select the first file in the diff view (for UI display)
+        // The file should already have a patch from the API, so it will show something
+        // The full diff_content will be loaded lazily when user navigates
         if let Some(ref sidebar) = self.sidebar {
             if let Some(file) = sidebar.get_selected_file() {
                 self.diff_view.set_file(Some(file.clone()));
             } else {
                 self.diff_view.set_file(None);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Load diff content for a specific file on demand
+    pub async fn load_file_diff(&mut self, file_index: usize) -> Result<()> {
+        if file_index >= self.files.len() {
+            return Ok(());
+        }
+
+        // Check if already loaded
+        if self.files[file_index].diff_content.is_some() {
+            return Ok(());
+        }
+
+        if let Some(ref pr) = self.pr {
+            if let Some(ref nav) = self.navigation {
+                let commit_index = nav.get_current_index();
+                let commit = &self.commits[commit_index];
+
+                let base_sha = if commit_index == 0 {
+                    pr.base.sha.clone()
+                } else {
+                    self.commits[commit_index - 1].sha.clone()
+                };
+
+                // Check diff cache first
+                let cache_key = crate::cache::DiffCacheKey {
+                    owner: self.owner.clone(),
+                    repo: self.repo.clone(),
+                    path: self.files[file_index].filename.clone(),
+                    base_sha: base_sha.clone(),
+                    head_sha: commit.sha.clone(),
+                };
+
+                if let Some(cached_diff) = self.diff_cache.get(&cache_key).await {
+                    // Use cached diff
+                    self.files[file_index].diff_content = Some(cached_diff);
+                } else {
+                    // Calculate diff and cache it
+                    DiffParser::enrich_single_file(
+                        &mut self.files[file_index],
+                        &self.client,
+                        &self.owner,
+                        &self.repo,
+                        &base_sha,
+                        &commit.sha,
+                    )
+                    .await?;
+
+                    // Cache the diff for future use
+                    if let Some(ref diff) = self.files[file_index].diff_content {
+                        self.diff_cache.put(cache_key, diff.clone()).await;
+                    }
+                }
+
+                // Update sidebar with the enriched file
+                if let Some(ref mut sidebar) = self.sidebar {
+                    sidebar.update_file(file_index, self.files[file_index].clone());
+                }
             }
         }
 
@@ -333,6 +465,67 @@ impl App {
 
     pub fn handle_prev_hunk(&mut self) {
         self.diff_view.prev_hunk();
+    }
+
+    /// Pre-fetch commit files in parallel for faster navigation
+    async fn prefetch_commit_files_parallel(&mut self, max_parallel: usize) -> Result<()> {
+        let commits_to_fetch: Vec<_> = self
+            .commits
+            .iter()
+            .enumerate()
+            .filter(|(_, commit)| !self.commit_files_cache.contains_key(&commit.sha))
+            .take(max_parallel)
+            .collect();
+
+        if commits_to_fetch.is_empty() {
+            return Ok(());
+        }
+
+        // Prepare data for parallel fetching
+        let client = self.client.clone();
+        let owner = self.owner.clone();
+        let repo = self.repo.clone();
+        let pr_files = self.pr_files.clone();
+        let total_commits = self.commits.len();
+
+        let futures: Vec<_> = commits_to_fetch
+            .into_iter()
+            .map(|(idx, commit)| {
+                let client = client.clone();
+                let owner = owner.clone();
+                let repo = repo.clone();
+                let sha = commit.sha.clone();
+                let pr_files = pr_files.clone();
+                let is_last = idx == total_commits - 1;
+
+                async move {
+                    // For the last commit, use PR files if available
+                    if is_last && pr_files.is_some() {
+                        Ok((sha, pr_files.unwrap()))
+                    } else {
+                        match client.get_commit_files(&owner, &repo, &sha).await {
+                            Ok(files) => Ok((sha, files)),
+                            Err(e) => {
+                                eprintln!("Failed to pre-fetch commit {}: {}", &sha, e);
+                                Err(e)
+                            }
+                        }
+                    }
+                }
+            })
+            .collect();
+
+        // Execute all futures in parallel
+        let results = join_all(futures).await;
+
+        // Store successful results in cache
+        for result in results {
+            if let Ok((sha, files)) = result {
+                self.commit_files_cache.insert(sha, files);
+            }
+        }
+
+        Ok(())
     }
 
     pub async fn handle_refresh(&mut self) -> Result<()> {

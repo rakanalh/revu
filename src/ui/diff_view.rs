@@ -10,6 +10,7 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
     Frame,
 };
+use std::collections::HashMap;
 
 pub struct DiffView {
     pub scroll_offset: u16,
@@ -20,6 +21,10 @@ pub struct DiffView {
     hunk_positions: Vec<usize>,
     syntax_highlighter: Option<SyntaxHighlighter>,
     theme_name: Option<String>,
+    /// Cache of syntax highlighters per file extension
+    highlighter_cache: HashMap<String, SyntaxHighlighter>,
+    /// Cache of hunk positions per file
+    hunk_cache: HashMap<String, Vec<usize>>,
 }
 
 impl DiffView {
@@ -33,31 +38,71 @@ impl DiffView {
             hunk_positions: Vec::new(),
             syntax_highlighter: None,
             theme_name: None,
+            highlighter_cache: HashMap::new(),
+            hunk_cache: HashMap::new(),
         }
     }
 
     pub fn set_file(&mut self, file: Option<FileChange>) {
-        // Create syntax highlighter for the file with theme if available
-        self.syntax_highlighter = file.as_ref().map(|f| {
-            if let Some(ref theme_name) = self.theme_name {
-                SyntaxHighlighter::with_theme(&f.filename, theme_name)
-            } else {
-                SyntaxHighlighter::new(&f.filename)
+        if let Some(ref f) = file {
+            // Get file extension for caching
+            let ext = f.filename
+                .rsplit('.')
+                .next()
+                .unwrap_or("")
+                .to_string();
+
+            // Check cache first, create new highlighter only if needed
+            if !self.highlighter_cache.contains_key(&ext) && !ext.is_empty() {
+                let highlighter = if let Some(ref theme_name) = self.theme_name {
+                    SyntaxHighlighter::with_theme(&f.filename, theme_name)
+                } else {
+                    SyntaxHighlighter::new(&f.filename)
+                };
+                self.highlighter_cache.insert(ext.clone(), highlighter);
             }
-        });
+
+            // Use cached highlighter
+            self.syntax_highlighter = self.highlighter_cache.get(&ext).cloned();
+
+            // Check if we have cached hunk positions for this file
+            let file_key = f.filename.clone();
+            if !self.hunk_cache.contains_key(&file_key) {
+                // Calculate and cache hunk positions
+                self.current_file = file.clone();
+                self.update_hunk_positions();
+                self.hunk_cache.insert(file_key.clone(), self.hunk_positions.clone());
+            } else {
+                // Use cached hunk positions
+                self.hunk_positions = self.hunk_cache.get(&file_key).cloned().unwrap_or_default();
+            }
+        } else {
+            self.syntax_highlighter = None;
+            self.hunk_positions.clear();
+        }
+
         self.current_file = file;
         self.scroll_offset = 0;
-        self.update_hunk_positions();
         self.update_max_scroll();
         self.scroll_to_first_change();
     }
 
     pub fn set_theme(&mut self, theme_name: &str) {
         self.theme_name = Some(theme_name.to_string());
+        // Clear highlighter cache to force recreation with new theme
+        self.highlighter_cache.clear();
         // Recreate syntax highlighter with new theme if a file is loaded
         if let Some(ref file) = self.current_file {
-            self.syntax_highlighter =
-                Some(SyntaxHighlighter::with_theme(&file.filename, theme_name));
+            let ext = file.filename
+                .rsplit('.')
+                .next()
+                .unwrap_or("")
+                .to_string();
+            if !ext.is_empty() {
+                let highlighter = SyntaxHighlighter::with_theme(&file.filename, theme_name);
+                self.highlighter_cache.insert(ext.clone(), highlighter.clone());
+                self.syntax_highlighter = Some(highlighter);
+            }
         }
     }
 

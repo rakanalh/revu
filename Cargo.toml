@@ -28,6 +28,8 @@ url = "2.5"
 regex = "1.11"
 similar = "2.6"
 chrono = "0.4"
+futures = "0.3"
+lru = "0.12"
 
 # HTTP client for raw diffs
 reqwest = { version = "0.12", features = ["json"] }
