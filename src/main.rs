@@ -1,4 +1,5 @@
 mod app;
+mod auth;
 mod diff;
 mod events;
 mod github;
@@ -66,8 +67,18 @@ async fn main() -> Result<()> {
     // Parse CLI arguments
     let cli = Cli::parse();
 
-    // Get token from env var if not provided via CLI
-    let token = cli.token.or_else(|| std::env::var("GITHUB_TOKEN").ok());
+    // Get token using priority ordering: CLI -> authinfo -> env var
+    let token = auth::get_github_token(cli.token).context("Failed to get GitHub token")?;
+
+    if token.is_none() {
+        eprintln!("Warning: No GitHub token found. You may encounter rate limits.");
+        eprintln!("Please provide authentication using one of these methods:");
+        eprintln!("  1. Command line: --token YOUR_TOKEN");
+        eprintln!(
+            "  2. ~/.authinfo file: machine api.github.com login USERNAME^revu password TOKEN"
+        );
+        eprintln!("  3. Environment variable: export GITHUB_TOKEN=YOUR_TOKEN");
+    }
 
     // Set owner/repo env vars if provided via CLI
     if let Some(owner) = cli.owner {

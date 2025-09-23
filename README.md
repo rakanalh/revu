@@ -31,7 +31,7 @@ A fast, keyboard-driven terminal user interface for reviewing GitHub Pull Reques
 
 - Rust 1.70 or higher
 - Cargo (comes with Rust)
-- GitHub personal access token (for private repositories)
+- GitHub personal access token (for private repositories and to avoid rate limits)
 
 ### Build from Source
 
@@ -68,12 +68,43 @@ revu https://github.com/owner/repo/pull/123
 revu 123
 ```
 
+### Authentication
+
+Revu supports multiple authentication methods, checked in this order:
+
+#### 1. Command Line (highest priority)
+```bash
+revu --token YOUR_TOKEN https://github.com/owner/repo/pull/123
+```
+
+#### 2. Authinfo File (recommended)
+
+Create a `~/.authinfo` or `~/.netrc` file with the following format:
+
+```
+machine api.github.com login YOUR_USERNAME^revu password YOUR_GITHUB_TOKEN
+```
+
+For security, ensure the file has proper permissions:
+```bash
+chmod 600 ~/.authinfo
+```
+
+Example:
+```
+machine api.github.com login johndoe^revu password ghp_1234567890abcdef
+```
+
+**Note:** The `^revu` suffix in the login field is required to identify tokens specifically for this application.
+
+#### 3. Environment Variable (fallback)
+```bash
+export GITHUB_TOKEN="your-personal-access-token"
+```
+
 ### Environment Variables
 
 ```bash
-# Required for authentication (for private repos or to avoid rate limits)
-export GITHUB_TOKEN="your-personal-access-token"
-
 # Optional: Set default repository (for using PR number only)
 export GITHUB_OWNER="repository-owner"
 export GITHUB_REPO="repository-name"
@@ -328,7 +359,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ### Common Issues
 
 **Q: I get a "rate limit exceeded" error**
-A: Set your GitHub personal access token using the `GITHUB_TOKEN` environment variable.
+A: You need to provide authentication. The recommended method is to create a `~/.authinfo` file:
+```
+machine api.github.com login YOUR_USERNAME^revu password YOUR_GITHUB_TOKEN
+```
+Alternatively, you can use the `--token` flag or set the `GITHUB_TOKEN` environment variable.
 
 **Q: The TUI doesn't display correctly**
 A: Ensure your terminal supports Unicode and 256 colors. Try a different terminal emulator if issues persist.
