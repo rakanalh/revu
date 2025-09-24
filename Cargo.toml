@@ -39,7 +39,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Configuration
-toml = "0.8"
+toml = "0.9"
 
 # Syntax highlighting
 syntect = { version = "5.2", default-features = false, features = ["parsing", "default-themes", "default-syntaxes", "regex-fancy"] }
