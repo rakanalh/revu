@@ -29,12 +29,31 @@ jobs:
     - name: Strip binary
       run: strip target/release/revu
 
-    - name: Create archive
+    - name: Create release package
       run: |
-        cd target/release
-        tar czf ../../revu-linux-amd64.tar.gz revu
-        cd ../..
+        # Create the release directory structure
+        mkdir -p revu-linux-amd64/themes
+
+        # Copy the binary
+        cp target/release/revu revu-linux-amd64/
+
+        # Copy all theme files
+        cp themes/*.toml revu-linux-amd64/themes/
+
+        # Copy the install script
+        cp install.sh revu-linux-amd64/
+
+        # Copy installation instructions
+        cp INSTALL.md revu-linux-amd64/
+
+        # Create the archive with the complete directory structure
+        tar czf revu-linux-amd64.tar.gz revu-linux-amd64/
+
+        # Generate checksum
         shasum -a 256 revu-linux-amd64.tar.gz > revu-linux-amd64.tar.gz.sha256
+
+        # Clean up the temporary directory
+        rm -rf revu-linux-amd64/
 
     - name: Upload binary to release
       uses: softprops/action-gh-release@v1
