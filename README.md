@@ -1,6 +1,7 @@
 # Revu - Terminal UI for GitHub PR Reviews
 
-[![CI](https://github.com/rakan/GithubReview/actions/workflows/ci.yml/badge.svg)](https://github.com/rakan/GithubReview/actions/workflows/ci.yml)
+[![CI](https://github.com/rakanalh/revu/actions/workflows/ci.yml/badge.svg)](https://github.com/rakanalh/revu/actions/workflows/ci.yml)
+[![Latest Release](https://img.shields.io/github/v/release/rakanalh/revu?display_name=tag)](https://github.com/rakanalh/revu/releases/latest)
 [![Rust](https://img.shields.io/badge/rust-%23dea584.svg?style=flat&logo=rust&logoColor=white)](https://www.rust-lang.org)
 [![Crates.io](https://img.shields.io/crates/v/revu.svg)](https://crates.io/crates/revu)
 
