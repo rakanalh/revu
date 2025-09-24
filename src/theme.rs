@@ -45,6 +45,21 @@ pub struct ThemeColors {
     // Scrollbar
     pub scrollbar: String,
     pub scrollbar_thumb: String,
+
+    // Search colors (optional with defaults for backward compatibility)
+    #[serde(default = "default_search_match")]
+    pub search_match: String,
+    #[serde(default = "default_search_current")]
+    pub search_current: String,
+}
+
+// Default functions for optional fields
+fn default_search_match() -> String {
+    "#f9e2af".to_string() // Default to yellow/amber for search matches
+}
+
+fn default_search_current() -> String {
+    "#cba6f7".to_string() // Default to purple/magenta for current search match
 }
 
 #[derive(Debug, Clone)]
@@ -155,7 +170,18 @@ impl Theme {
     fn write_theme_file_if_not_exists(dir: &Path, name: &str, content: &str) -> Result<()> {
         let path = dir.join(format!("{name}.toml"));
         if !path.exists() {
-            fs::write(path, content)?;
+            fs::write(&path, content)?;
+        } else {
+            // Check if the existing theme file has search fields
+            // If not, update it with the new embedded version
+            if let Ok(existing_content) = fs::read_to_string(&path) {
+                if !existing_content.contains("search_match")
+                    || !existing_content.contains("search_current")
+                {
+                    // Update the theme file with new fields
+                    fs::write(&path, content)?;
+                }
+            }
         }
         Ok(())
     }
@@ -295,5 +321,127 @@ impl Theme {
 
     pub fn scrollbar_thumb(&self) -> Color {
         self.parse_color(&self.colors.scrollbar_thumb)
+    }
+
+    pub fn search_match(&self) -> Color {
+        self.parse_color(&self.colors.search_match)
+    }
+
+    pub fn search_current(&self) -> Color {
+        self.parse_color(&self.colors.search_current)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_backward_compatibility_missing_search_fields() {
+        // Create a theme without search fields (simulating old theme file)
+        let old_theme_content = "# Test Theme without search fields\nbackground = \"#1e1e2e\"\nforeground = \"#cdd6f4\"\nborder = \"#585b70\"\nborder_focused = \"#89b4fa\"\ntitle = \"#f5e0dc\"\nsubtitle = \"#a6adc8\"\nadded = \"#a6e3a1\"\nremoved = \"#f38ba8\"\nmodified = \"#fab387\"\ncontext = \"#6c7086\"\nheader = \"#89dceb\"\ninfo = \"#89b4fa\"\nwarning = \"#f9e2af\"\nerror = \"#f38ba8\"\nsuccess = \"#a6e3a1\"\nselection_bg = \"#313244\"\nselection_fg = \"#cdd6f4\"\ncursor = \"#f5e0dc\"\nnav_bg = \"#181825\"\nnav_fg = \"#bac2de\"\nnav_active = \"#cba6f7\"\nsidebar_bg = \"#11111b\"\nsidebar_fg = \"#a6adc8\"\nsidebar_selected = \"#45475a\"\nscrollbar = \"#313244\"\nscrollbar_thumb = \"#585b70\"";
+
+        // Parse the old theme content without search fields
+        let colors: ThemeColors = toml::from_str(old_theme_content).unwrap();
+
+        // Verify that default values are used for search fields
+        assert_eq!(colors.search_match, "#f9e2af");
+        assert_eq!(colors.search_current, "#cba6f7");
+    }
+
+    #[test]
+    fn test_theme_with_search_fields() {
+        // Create a theme with search fields (new theme format)
+        let new_theme_content = "background = \"#1e1e2e\"\nforeground = \"#cdd6f4\"\nborder = \"#585b70\"\nborder_focused = \"#89b4fa\"\ntitle = \"#f5e0dc\"\nsubtitle = \"#a6adc8\"\nadded = \"#a6e3a1\"\nremoved = \"#f38ba8\"\nmodified = \"#fab387\"\ncontext = \"#6c7086\"\nheader = \"#89dceb\"\ninfo = \"#89b4fa\"\nwarning = \"#f9e2af\"\nerror = \"#f38ba8\"\nsuccess = \"#a6e3a1\"\nselection_bg = \"#313244\"\nselection_fg = \"#cdd6f4\"\ncursor = \"#f5e0dc\"\nnav_bg = \"#181825\"\nnav_fg = \"#bac2de\"\nnav_active = \"#cba6f7\"\nsidebar_bg = \"#11111b\"\nsidebar_fg = \"#a6adc8\"\nsidebar_selected = \"#45475a\"\nscrollbar = \"#313244\"\nscrollbar_thumb = \"#585b70\"\nsearch_match = \"#ff0000\"\nsearch_current = \"#00ff00\"";
+
+        // Parse the theme content with search fields
+        let colors: ThemeColors = toml::from_str(new_theme_content).unwrap();
+
+        // Verify that provided values are used
+        assert_eq!(colors.search_match, "#ff0000");
+        assert_eq!(colors.search_current, "#00ff00");
+    }
+
+    #[test]
+    fn test_theme_file_update() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        let theme_path = temp_dir.path();
+
+        // Create old theme file without search fields
+        let old_content = "background = \"#000000\"\nforeground = \"#ffffff\"\nborder = \"#333333\"\nborder_focused = \"#666666\"\ntitle = \"#ffffff\"\nsubtitle = \"#cccccc\"\nadded = \"#00ff00\"\nremoved = \"#ff0000\"\nmodified = \"#ffff00\"\ncontext = \"#888888\"\nheader = \"#00ffff\"\ninfo = \"#0000ff\"\nwarning = \"#ffff00\"\nerror = \"#ff0000\"\nsuccess = \"#00ff00\"\nselection_bg = \"#444444\"\nselection_fg = \"#ffffff\"\ncursor = \"#ffffff\"\nnav_bg = \"#222222\"\nnav_fg = \"#dddddd\"\nnav_active = \"#ff00ff\"\nsidebar_bg = \"#111111\"\nsidebar_fg = \"#cccccc\"\nsidebar_selected = \"#555555\"\nscrollbar = \"#333333\"\nscrollbar_thumb = \"#666666\"";
+
+        // New content with search fields
+        let new_content =
+            format!("{old_content}\nsearch_match = \"#ffff00\"\nsearch_current = \"#ff00ff\"");
+
+        // Write old theme file
+        Theme::write_theme_file_if_not_exists(theme_path, "test-theme", old_content)?;
+
+        // Verify file was created
+        let file_path = theme_path.join("test-theme.toml");
+        assert!(file_path.exists());
+
+        // Call again with new content (should update the file)
+        Theme::write_theme_file_if_not_exists(theme_path, "test-theme", &new_content)?;
+
+        // Read and verify the file was updated
+        let content = fs::read_to_string(&file_path)?;
+        assert!(content.contains("search_match"));
+        assert!(content.contains("search_current"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_color_methods() {
+        let theme = Theme {
+            name: "test".to_string(),
+            colors: ThemeColors {
+                background: "#1e1e2e".to_string(),
+                foreground: "#cdd6f4".to_string(),
+                border: "#585b70".to_string(),
+                border_focused: "#89b4fa".to_string(),
+                title: "#f5e0dc".to_string(),
+                subtitle: "#a6adc8".to_string(),
+                added: "#a6e3a1".to_string(),
+                removed: "#f38ba8".to_string(),
+                modified: "#fab387".to_string(),
+                context: "#6c7086".to_string(),
+                header: "#89dceb".to_string(),
+                info: "#89b4fa".to_string(),
+                warning: "#f9e2af".to_string(),
+                error: "#f38ba8".to_string(),
+                success: "#a6e3a1".to_string(),
+                selection_bg: "#313244".to_string(),
+                selection_fg: "#cdd6f4".to_string(),
+                cursor: "#f5e0dc".to_string(),
+                nav_bg: "#181825".to_string(),
+                nav_fg: "#bac2de".to_string(),
+                nav_active: "#cba6f7".to_string(),
+                sidebar_bg: "#11111b".to_string(),
+                sidebar_fg: "#a6adc8".to_string(),
+                sidebar_selected: "#45475a".to_string(),
+                scrollbar: "#313244".to_string(),
+                scrollbar_thumb: "#585b70".to_string(),
+                search_match: "#f9e2af".to_string(),
+                search_current: "#cba6f7".to_string(),
+            },
+        };
+
+        // Test that search color methods work
+        let search_match_color = theme.search_match();
+        let search_current_color = theme.search_current();
+
+        // Verify colors are parsed (not testing exact values as parse_color is private)
+        match search_match_color {
+            Color::Rgb(_, _, _) => {} // Expected
+            _ => panic!("search_match should return RGB color"),
+        }
+
+        match search_current_color {
+            Color::Rgb(_, _, _) => {} // Expected
+            _ => panic!("search_current should return RGB color"),
+        }
     }
 }

@@ -1624,6 +1624,7 @@ dependencies = [
  "serde_json",
  "similar",
  "syntect",
+ "tempfile",
  "thiserror 2.0.16",
  "tokio",
  "toml",

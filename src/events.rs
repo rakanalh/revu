@@ -32,7 +32,7 @@ impl EventHandler {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Action {
     Quit,
     NavigateUp,
@@ -50,11 +50,22 @@ pub enum Action {
     CycleTheme,
     NextHunk,
     PrevHunk,
+    StartSearch,
+    #[allow(dead_code)] // Used in main.rs but not constructed through key mapping
+    ExitSearch,
+    NextMatch,
+    PrevMatch,
+    #[allow(dead_code)] // Used in search mode directly, not through key mapping
+    ExecuteSearch,
+    #[allow(dead_code)] // Used in search mode directly, not through key mapping
+    CharInput(char),
+    #[allow(dead_code)] // Used in search mode directly, not through key mapping
+    Backspace,
 }
 
 impl Action {
     /// Get action from key event using the provided key mapping
     pub fn from_key_event(key: KeyEvent, key_mapping: &HashMap<KeyEvent, Action>) -> Option<Self> {
-        key_mapping.get(&key).copied()
+        key_mapping.get(&key).cloned()
     }
 }

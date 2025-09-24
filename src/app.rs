@@ -17,6 +17,12 @@ pub enum FocusedPane {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+pub enum InputMode {
+    Normal,
+    Search,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum LoadingStepStatus {
     Pending,
     InProgress,
@@ -97,6 +103,7 @@ pub struct App {
     pub settings: Settings,
     pub theme: Theme,
     pub focused_pane: FocusedPane,
+    pub input_mode: InputMode,
     /// Cache of commit files indexed by commit SHA
     commit_files_cache: HashMap<String, Vec<FileChange>>,
     /// All files changed in the PR (fetched once)
@@ -135,6 +142,7 @@ impl App {
             settings,
             theme,
             focused_pane: FocusedPane::Sidebar,
+            input_mode: InputMode::Normal,
             commit_files_cache: HashMap::new(),
             pr_files: None,
             diff_cache: DiffCache::new(50),

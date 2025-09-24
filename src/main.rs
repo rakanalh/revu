@@ -21,7 +21,7 @@ use ratatui::{backend::CrosstermBackend, Terminal};
 use std::{io, time::Duration};
 
 use crate::{
-    app::{App, AppState, LoadingStatus, LoadingStepStatus},
+    app::{App, AppState, InputMode, LoadingStatus, LoadingStepStatus},
     diff::DiffParser,
     events::{Action, Event, EventHandler},
     github::{Commit, FileChange, GitHubClient, PullRequest},
@@ -210,6 +210,13 @@ async fn run_app<B: ratatui::backend::Backend>(
             }
         }
 
+        // Set cursor visibility based on search mode
+        if app.input_mode == InputMode::Search {
+            terminal.show_cursor()?;
+        } else {
+            terminal.hide_cursor()?;
+        }
+
         // Draw UI
         terminal.draw(|f| {
             let size = f.area();
@@ -255,10 +262,40 @@ async fn run_app<B: ratatui::backend::Backend>(
         if let Some(event) = event_handler.poll(Duration::from_millis(100))? {
             match event {
                 Event::Key(key) => {
-                    if let Some(action) = Action::from_key_event(key, &key_mapping) {
+                    // Handle search mode input
+                    if app.input_mode == InputMode::Search {
+                        use crossterm::event::{KeyCode, KeyModifiers};
+                        match key.code {
+                            KeyCode::Esc => {
+                                app.diff_view.exit_search();
+                                app.input_mode = InputMode::Normal;
+                            }
+                            KeyCode::Enter => {
+                                app.diff_view.execute_search();
+                                // Exit input mode but keep search active
+                                app.input_mode = InputMode::Normal;
+                            }
+                            KeyCode::Backspace => {
+                                app.diff_view.backspace_search();
+                            }
+                            KeyCode::Char(c) if key.modifiers != KeyModifiers::CONTROL => {
+                                app.diff_view.update_search_query(c);
+                            }
+                            _ => {}
+                        }
+                    } else if let Some(action) = Action::from_key_event(key, &key_mapping) {
+                        // Normal mode actions
                         match action {
                             Action::Quit => {
-                                app.quit();
+                                // Check if search is active first
+                                if app.diff_view.search_mode || app.diff_view.search_active {
+                                    // Clear search instead of quitting
+                                    app.diff_view.clear_search();
+                                    app.input_mode = InputMode::Normal;
+                                } else {
+                                    // No search active, proceed with quit
+                                    app.quit();
+                                }
                             }
                             Action::ToggleFocus => {
                                 app.toggle_focus();
@@ -305,6 +342,21 @@ async fn run_app<B: ratatui::backend::Backend>(
                             Action::PrevHunk => {
                                 app.handle_prev_hunk();
                             }
+                            Action::StartSearch => {
+                                app.diff_view.start_search();
+                                app.input_mode = InputMode::Search;
+                            }
+                            Action::NextMatch => {
+                                app.diff_view.next_match();
+                            }
+                            Action::PrevMatch => {
+                                app.diff_view.prev_match();
+                            }
+                            Action::ExitSearch => {
+                                app.diff_view.exit_search();
+                                app.input_mode = InputMode::Normal;
+                            }
+                            _ => {}
                         }
                     }
                 }

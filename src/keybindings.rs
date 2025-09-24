@@ -38,6 +38,12 @@ pub struct KeyBindings {
     pub next_hunk: Vec<String>,
     #[serde(default = "default_prev_hunk")]
     pub prev_hunk: Vec<String>,
+    #[serde(default = "default_start_search")]
+    pub start_search: Vec<String>,
+    #[serde(default = "default_next_match")]
+    pub next_match: Vec<String>,
+    #[serde(default = "default_prev_match")]
+    pub prev_match: Vec<String>,
 }
 
 // Default key bindings - Vim-style with alternatives
@@ -105,6 +111,18 @@ fn default_prev_hunk() -> Vec<String> {
     vec!["[".to_string()]
 }
 
+fn default_start_search() -> Vec<String> {
+    vec!["/".to_string()]
+}
+
+fn default_next_match() -> Vec<String> {
+    vec!["n".to_string()]
+}
+
+fn default_prev_match() -> Vec<String> {
+    vec!["N".to_string(), "Shift+n".to_string()]
+}
+
 impl Default for KeyBindings {
     fn default() -> Self {
         Self {
@@ -124,6 +142,9 @@ impl Default for KeyBindings {
             refresh: default_refresh(),
             next_hunk: default_next_hunk(),
             prev_hunk: default_prev_hunk(),
+            start_search: default_start_search(),
+            next_match: default_next_match(),
+            prev_match: default_prev_match(),
         }
     }
 }
@@ -138,7 +159,7 @@ impl KeyBindings {
             for key_str in keys {
                 let key_event = Self::parse_key(key_str)
                     .with_context(|| format!("Invalid key binding: {key_str}"))?;
-                map.insert(key_event, action);
+                map.insert(key_event, action.clone());
             }
             Ok(())
         };
@@ -160,6 +181,9 @@ impl KeyBindings {
         add_mappings(&self.refresh, Action::Refresh)?;
         add_mappings(&self.next_hunk, Action::NextHunk)?;
         add_mappings(&self.prev_hunk, Action::PrevHunk)?;
+        add_mappings(&self.start_search, Action::StartSearch)?;
+        add_mappings(&self.next_match, Action::NextMatch)?;
+        add_mappings(&self.prev_match, Action::PrevMatch)?;
 
         Ok(map)
     }
@@ -332,15 +356,15 @@ mod tests {
 
         // Test vim-style navigation
         let h = KeyEvent::new(KeyCode::Char('h'), KeyModifiers::empty());
-        assert_eq!(mapping.get(&h).copied(), Some(Action::PrevCommit));
+        assert_eq!(mapping.get(&h).cloned(), Some(Action::PrevCommit));
 
         let l = KeyEvent::new(KeyCode::Char('l'), KeyModifiers::empty());
-        assert_eq!(mapping.get(&l).copied(), Some(Action::NextCommit));
+        assert_eq!(mapping.get(&l).cloned(), Some(Action::NextCommit));
 
         let j = KeyEvent::new(KeyCode::Char('j'), KeyModifiers::empty());
-        assert_eq!(mapping.get(&j).copied(), Some(Action::NavigateDown));
+        assert_eq!(mapping.get(&j).cloned(), Some(Action::NavigateDown));
 
         let k = KeyEvent::new(KeyCode::Char('k'), KeyModifiers::empty());
-        assert_eq!(mapping.get(&k).copied(), Some(Action::NavigateUp));
+        assert_eq!(mapping.get(&k).cloned(), Some(Action::NavigateUp));
     }
 }

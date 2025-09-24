@@ -148,6 +148,13 @@ impl Navigation {
             ),
             Span::styled(" Hunks  ", Style::default().fg(theme.nav_fg())),
             Span::styled(
+                "/",
+                Style::default()
+                    .fg(theme.nav_active())
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(" Search  ", Style::default().fg(theme.nav_fg())),
+            Span::styled(
                 &display_keys.quit,
                 Style::default()
                     .fg(theme.error())

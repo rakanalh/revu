@@ -25,6 +25,13 @@ pub struct DiffView {
     highlighter_cache: HashMap<String, SyntaxHighlighter>,
     /// Cache of hunk positions per file
     hunk_cache: HashMap<String, Vec<usize>>,
+    // Search state
+    pub search_mode: bool,   // true when in search input mode
+    pub search_active: bool, // true when search results are shown
+    pub search_query: String,
+    pub search_matches: Vec<(usize, usize, usize)>, // (line_index, start_col, end_col)
+    pub current_match_index: Option<usize>,
+    pub search_input_cursor: usize,
 }
 
 impl DiffView {
@@ -40,6 +47,12 @@ impl DiffView {
             theme_name: None,
             highlighter_cache: HashMap::new(),
             hunk_cache: HashMap::new(),
+            search_mode: false,
+            search_active: false,
+            search_query: String::new(),
+            search_matches: Vec::new(),
+            current_match_index: None,
+            search_input_cursor: 0,
         }
     }
 
@@ -287,13 +300,191 @@ impl DiffView {
         }
     }
 
+    // Search methods
+    pub fn start_search(&mut self) {
+        self.search_mode = true;
+        self.search_active = false;
+        self.search_query.clear();
+        self.search_matches.clear();
+        self.current_match_index = None;
+        self.search_input_cursor = 0;
+    }
+
+    pub fn exit_search(&mut self) {
+        self.search_mode = false;
+        self.search_active = false;
+        self.search_query.clear();
+        self.search_matches.clear();
+        self.current_match_index = None;
+    }
+
+    pub fn update_search_query(&mut self, ch: char) {
+        self.search_query.insert(self.search_input_cursor, ch);
+        self.search_input_cursor += 1;
+    }
+
+    pub fn backspace_search(&mut self) {
+        if self.search_input_cursor > 0 {
+            self.search_input_cursor -= 1;
+            self.search_query.remove(self.search_input_cursor);
+        }
+    }
+
+    pub fn execute_search(&mut self) {
+        if self.search_query.is_empty() {
+            return;
+        }
+
+        self.search_matches.clear();
+        self.current_match_index = None;
+
+        // Search through the full file view
+        if let Some(ref file) = self.current_file {
+            if let Some(ref diff) = file.diff_content {
+                let lines = diff.full_file_view.clone();
+                self.find_matches(&lines);
+            } else if let Some(ref patch) = file.patch {
+                // Fallback: search in raw patch
+                let lines: Vec<String> = patch.lines().map(|s| s.to_string()).collect();
+                self.find_matches_in_strings(&lines);
+            }
+        }
+
+        // If we found matches, select the first one
+        if !self.search_matches.is_empty() {
+            self.current_match_index = Some(0);
+            self.scroll_to_current_match();
+        }
+
+        // Mark search as active when executed
+        self.search_active = true;
+        self.search_mode = false; // Exit input mode
+    }
+
+    fn find_matches(&mut self, lines: &[crate::github::models::DiffLine]) {
+        let query_lower = self.search_query.to_lowercase();
+
+        for (line_idx, line) in lines.iter().enumerate() {
+            let content_lower = line.content.to_lowercase();
+            let mut start_pos = 0;
+
+            while let Some(match_pos) = content_lower[start_pos..].find(&query_lower) {
+                let absolute_pos = start_pos + match_pos;
+                self.search_matches.push((
+                    line_idx,
+                    absolute_pos,
+                    absolute_pos + self.search_query.len(),
+                ));
+                start_pos = absolute_pos + 1; // Continue searching after this match
+            }
+        }
+    }
+
+    fn find_matches_in_strings(&mut self, lines: &[String]) {
+        let query_lower = self.search_query.to_lowercase();
+
+        for (line_idx, line) in lines.iter().enumerate() {
+            // Skip the line number and prefix to get actual content
+            let content = if line.len() > 1 {
+                &line[1..] // Skip the +/- prefix
+            } else {
+                line
+            };
+
+            let content_lower = content.to_lowercase();
+            let mut start_pos = 0;
+
+            while let Some(match_pos) = content_lower[start_pos..].find(&query_lower) {
+                let absolute_pos = start_pos + match_pos;
+                self.search_matches.push((
+                    line_idx,
+                    absolute_pos + 1, // Account for the prefix we skipped
+                    absolute_pos + 1 + self.search_query.len(),
+                ));
+                start_pos = absolute_pos + 1;
+            }
+        }
+    }
+
+    pub fn next_match(&mut self) {
+        if self.search_matches.is_empty() {
+            return;
+        }
+
+        self.current_match_index = Some(match self.current_match_index {
+            Some(idx) => {
+                if idx + 1 >= self.search_matches.len() {
+                    0 // Wrap around to beginning
+                } else {
+                    idx + 1
+                }
+            }
+            None => 0,
+        });
+
+        self.scroll_to_current_match();
+    }
+
+    pub fn prev_match(&mut self) {
+        if self.search_matches.is_empty() {
+            return;
+        }
+
+        self.current_match_index = Some(match self.current_match_index {
+            Some(idx) => {
+                if idx == 0 {
+                    self.search_matches.len() - 1 // Wrap around to end
+                } else {
+                    idx - 1
+                }
+            }
+            None => self.search_matches.len() - 1,
+        });
+
+        self.scroll_to_current_match();
+    }
+
+    fn scroll_to_current_match(&mut self) {
+        if let Some(idx) = self.current_match_index {
+            if let Some(&(line_idx, _, _)) = self.search_matches.get(idx) {
+                // Scroll to center the match in the viewport if possible
+                let target_line = (line_idx as u16).saturating_sub(self.viewport_height / 2);
+                self.scroll_offset = target_line.min(self.max_scroll);
+            }
+        }
+    }
+
+    #[allow(dead_code)] // Kept for potential future use
+    pub fn clear_search(&mut self) {
+        self.search_mode = false;
+        self.search_active = false;
+        self.search_query.clear();
+        self.search_matches.clear();
+        self.current_match_index = None;
+        self.search_input_cursor = 0;
+    }
+
     pub fn render(&mut self, f: &mut Frame, area: Rect, theme: &Theme, is_focused: bool) {
+        // Adjust for search bar if in search mode or status line if search is active
+        let (main_area, bottom_area) = if self.search_mode || self.search_active {
+            let chunks = ratatui::layout::Layout::default()
+                .direction(ratatui::layout::Direction::Vertical)
+                .constraints([
+                    ratatui::layout::Constraint::Min(3),
+                    ratatui::layout::Constraint::Length(3),
+                ])
+                .split(area);
+            (chunks[0], Some(chunks[1]))
+        } else {
+            (area, None)
+        };
+
         // Update viewport height
-        self.viewport_height = area.height.saturating_sub(2);
+        self.viewport_height = main_area.height.saturating_sub(2);
         self.update_max_scroll();
 
         let content = self.generate_content(theme);
-        let visible_height = area.height.saturating_sub(2) as usize;
+        let visible_height = main_area.height.saturating_sub(2) as usize;
 
         // Get visible lines
         let lines: Vec<Line> = content
@@ -336,7 +527,7 @@ impl DiffView {
             )
             .style(Style::default().fg(theme.fg()));
 
-        f.render_widget(paragraph, area);
+        f.render_widget(paragraph, main_area);
 
         // Render scrollbar
         if self.max_scroll > 0 {
@@ -349,7 +540,16 @@ impl DiffView {
             let mut scrollbar_state =
                 ScrollbarState::new(self.max_scroll as usize).position(self.scroll_offset as usize);
 
-            f.render_stateful_widget(scrollbar, area, &mut scrollbar_state);
+            f.render_stateful_widget(scrollbar, main_area, &mut scrollbar_state);
+        }
+
+        // Render search bar or search status
+        if let Some(bottom_area) = bottom_area {
+            if self.search_mode {
+                self.render_search_bar(f, bottom_area, theme);
+            } else if self.search_active {
+                self.render_search_status(f, bottom_area, theme);
+            }
         }
     }
 
@@ -478,6 +678,30 @@ impl DiffView {
                 "    [           : Jump to previous hunk",
                 Style::default().fg(theme.fg()),
             )));
+            lines.push(Line::from(""));
+            lines.push(Line::from(Span::styled(
+                "  Search:",
+                Style::default()
+                    .fg(theme.subtitle())
+                    .add_modifier(Modifier::BOLD),
+            )));
+            lines.push(Line::from(Span::styled(
+                "    /           : Start search",
+                Style::default().fg(theme.fg()),
+            )));
+            lines.push(Line::from(Span::styled(
+                "    n           : Next search result",
+                Style::default().fg(theme.fg()),
+            )));
+            lines.push(Line::from(Span::styled(
+                "    N           : Previous search result",
+                Style::default().fg(theme.fg()),
+            )));
+            lines.push(Line::from(Span::styled(
+                "    Esc         : Clear search (when searching)",
+                Style::default().fg(theme.fg()),
+            )));
+            lines.push(Line::from(""));
             lines.push(Line::from(Span::styled(
                 "    q/Esc       : Quit",
                 Style::default().fg(theme.fg()),
@@ -487,11 +711,143 @@ impl DiffView {
         lines
     }
 
+    fn apply_search_highlighting(
+        &self,
+        text: String,
+        line_idx: usize,
+        base_style: Style,
+        theme: &Theme,
+    ) -> Vec<Span<'static>> {
+        // Check if we have any matches on this line
+        let line_matches: Vec<_> = self
+            .search_matches
+            .iter()
+            .filter(|(idx, _, _)| *idx == line_idx)
+            .collect();
+
+        if line_matches.is_empty() {
+            return vec![Span::styled(text, base_style)];
+        }
+
+        let mut spans = Vec::new();
+        let mut last_end = 0;
+
+        // Sort matches by start position
+        let mut sorted_matches = line_matches.clone();
+        sorted_matches.sort_by_key(|(_, start, _)| *start);
+
+        for &(_, start, end) in sorted_matches.iter() {
+            // Add text before the match
+            if last_end < *start && last_end < text.len() {
+                let before = text[last_end..*start.min(&text.len())].to_string();
+                if !before.is_empty() {
+                    spans.push(Span::styled(before, base_style));
+                }
+            }
+
+            // Add the matched text with highlight
+            if *start < text.len() && *end <= text.len() && *start < *end {
+                let matched = text[*start..*end].to_string();
+                let is_current = self
+                    .current_match_index
+                    .map(|idx| {
+                        self.search_matches
+                            .get(idx)
+                            .map(|(l, s, e)| l == &line_idx && s == start && e == end)
+                            .unwrap_or(false)
+                    })
+                    .unwrap_or(false);
+
+                let match_style = if is_current {
+                    base_style
+                        .bg(theme.search_current())
+                        .add_modifier(Modifier::BOLD)
+                } else {
+                    base_style.bg(theme.search_match())
+                };
+                spans.push(Span::styled(matched, match_style));
+                last_end = *end;
+            }
+        }
+
+        // Add any remaining text after the last match
+        if last_end < text.len() {
+            let remaining = text[last_end..].to_string();
+            if !remaining.is_empty() {
+                spans.push(Span::styled(remaining, base_style));
+            }
+        }
+
+        spans
+    }
+
+    fn render_search_bar(&self, f: &mut Frame, area: Rect, theme: &Theme) {
+        let search_text = format!("/{}", self.search_query);
+        let match_info = if !self.search_matches.is_empty() {
+            if let Some(current) = self.current_match_index {
+                format!(" [{}/{}]", current + 1, self.search_matches.len())
+            } else {
+                format!(" [0/{}]", self.search_matches.len())
+            }
+        } else if !self.search_query.is_empty() {
+            " [No matches]".to_string()
+        } else {
+            String::new()
+        };
+
+        let full_text = format!("{search_text}{match_info}");
+
+        let search_block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(theme.border_focused()))
+            .title(" Search (Enter to search, Esc to cancel) ");
+
+        let search_paragraph = Paragraph::new(full_text)
+            .block(search_block)
+            .style(Style::default().fg(theme.fg()));
+
+        f.render_widget(search_paragraph, area);
+
+        // Show cursor
+        f.set_cursor_position((
+            area.x + 1 + self.search_input_cursor as u16 + 1, // +1 for '/', +1 for border
+            area.y + 1,
+        ));
+    }
+
+    fn render_search_status(&self, f: &mut Frame, area: Rect, theme: &Theme) {
+        let status_text = if !self.search_matches.is_empty() {
+            let current = self.current_match_index.map(|i| i + 1).unwrap_or(0);
+            format!(
+                " Searching for: \"{}\" - {}/{} matches (n: next, N: previous, Esc: clear)",
+                self.search_query,
+                current,
+                self.search_matches.len()
+            )
+        } else {
+            format!(
+                " Searching for: \"{}\" - No matches found (Esc: clear)",
+                self.search_query
+            )
+        };
+
+        let status_block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(theme.border()))
+            .style(Style::default().bg(theme.bg()).fg(theme.info()));
+
+        let status_paragraph = Paragraph::new(status_text)
+            .block(status_block)
+            .style(Style::default().fg(theme.info()));
+
+        f.render_widget(status_paragraph, area);
+    }
+
     fn render_full_file_diff(&self, diff: &DiffContent, theme: &Theme) -> Vec<Line<'static>> {
         let mut lines = Vec::new();
 
         // Render the full file view with inline diff annotations
-        for diff_line in &diff.full_file_view {
+        for (line_idx, diff_line) in diff.full_file_view.iter().enumerate() {
             // Format line numbers - show both old and new line numbers for context lines,
             // only the relevant one for additions/deletions
             let line_number_str = match diff_line.line_type {
@@ -546,13 +902,31 @@ impl DiffView {
                 ),
             };
 
+            // Check if this line has search matches
+            let has_search_match = !self.search_matches.is_empty()
+                && self
+                    .search_matches
+                    .iter()
+                    .any(|(idx, _, _)| *idx == line_idx);
+
             // Build the line with syntax highlighting if available
             let formatted_line = if matches!(diff_line.line_type, LineType::Header) {
                 // Don't syntax highlight header lines
-                vec![Span::styled(
-                    format!("{line_number_str}{prefix} {}", diff_line.content),
-                    base_style,
-                )]
+                let full_line = format!("{line_number_str}{prefix} {}", diff_line.content);
+                if has_search_match {
+                    // Apply search highlighting to the content part
+                    let prefix_text = format!("{line_number_str}{prefix} ");
+                    let mut spans = vec![Span::styled(prefix_text, base_style)];
+                    spans.extend(self.apply_search_highlighting(
+                        diff_line.content.clone(),
+                        line_idx,
+                        base_style,
+                        theme,
+                    ));
+                    spans
+                } else {
+                    vec![Span::styled(full_line, base_style)]
+                }
             } else if let Some(ref highlighter) = self.syntax_highlighter {
                 let mut spans = Vec::new();
 
@@ -562,48 +936,79 @@ impl DiffView {
                     base_style,
                 ));
 
-                // Apply syntax highlighting to the code content
-                let highlighted_spans = highlighter.highlight_line(&diff_line.content);
+                // Apply syntax highlighting to the code content, or search highlighting if active
+                if has_search_match {
+                    // Apply search highlighting instead of syntax highlighting for simplicity
+                    spans.extend(self.apply_search_highlighting(
+                        diff_line.content.clone(),
+                        line_idx,
+                        if let Some(bg) = background_color {
+                            base_style.bg(bg)
+                        } else {
+                            base_style
+                        },
+                        theme,
+                    ));
+                } else {
+                    // Apply syntax highlighting
+                    let highlighted_spans = highlighter.highlight_line(&diff_line.content);
 
-                for (syntax_style, text) in highlighted_spans {
-                    // Convert syntect style to ratatui style
-                    let mut span_style = syntect_style_to_ratatui_style(&syntax_style);
+                    for (syntax_style, text) in highlighted_spans {
+                        // Convert syntect style to ratatui style
+                        let mut span_style = syntect_style_to_ratatui_style(&syntax_style);
 
-                    // Apply the diff background color if present
-                    if let Some(bg) = background_color {
-                        span_style = span_style.bg(bg);
-                    }
+                        // Apply the diff background color if present
+                        if let Some(bg) = background_color {
+                            span_style = span_style.bg(bg);
+                        }
 
-                    // For additions and deletions, blend the syntax highlighting with diff colors
-                    if matches!(diff_line.line_type, LineType::Addition | LineType::Deletion) {
-                        // Keep the syntax highlighting foreground but make it slightly brighter/dimmer
-                        // based on whether it's an addition or deletion
-                        if diff_line.line_type == LineType::Addition {
-                            // Make additions slightly brighter
-                            if let Color::Rgb(r, g, b) = span_style.fg.unwrap_or(theme.fg()) {
-                                span_style = span_style.fg(Color::Rgb(
-                                    (r as u16 + 20).min(255) as u8,
-                                    (g as u16 + 30).min(255) as u8,
-                                    (b as u16 + 20).min(255) as u8,
-                                ));
+                        // For additions and deletions, blend the syntax highlighting with diff colors
+                        if matches!(diff_line.line_type, LineType::Addition | LineType::Deletion) {
+                            // Keep the syntax highlighting foreground but make it slightly brighter/dimmer
+                            // based on whether it's an addition or deletion
+                            if diff_line.line_type == LineType::Addition {
+                                // Make additions slightly brighter
+                                if let Color::Rgb(r, g, b) = span_style.fg.unwrap_or(theme.fg()) {
+                                    span_style = span_style.fg(Color::Rgb(
+                                        (r as u16 + 20).min(255) as u8,
+                                        (g as u16 + 30).min(255) as u8,
+                                        (b as u16 + 20).min(255) as u8,
+                                    ));
+                                }
                             }
                         }
-                    }
 
-                    spans.push(Span::styled(text, span_style));
+                        spans.push(Span::styled(text, span_style));
+                    }
                 }
 
                 spans
             } else {
                 // No syntax highlighting available, use the base style
-                vec![Span::styled(
-                    format!("{line_number_str}{prefix} {}", diff_line.content),
-                    if let Some(bg) = background_color {
-                        base_style.bg(bg)
-                    } else {
-                        base_style
-                    },
-                )]
+                if has_search_match {
+                    let prefix_text = format!("{line_number_str}{prefix} ");
+                    let mut spans = vec![Span::styled(prefix_text, base_style)];
+                    spans.extend(self.apply_search_highlighting(
+                        diff_line.content.clone(),
+                        line_idx,
+                        if let Some(bg) = background_color {
+                            base_style.bg(bg)
+                        } else {
+                            base_style
+                        },
+                        theme,
+                    ));
+                    spans
+                } else {
+                    vec![Span::styled(
+                        format!("{line_number_str}{prefix} {}", diff_line.content),
+                        if let Some(bg) = background_color {
+                            base_style.bg(bg)
+                        } else {
+                            base_style
+                        },
+                    )]
+                }
             };
 
             lines.push(Line::from(formatted_line));
@@ -833,5 +1238,429 @@ mod tests {
         diff_view.scroll_offset = 5;
         diff_view.prev_hunk();
         assert_eq!(diff_view.scroll_offset, 0); // Jump to the single hunk
+    }
+
+    #[test]
+    fn test_search_functionality() {
+        let mut diff_view = DiffView::new();
+
+        // Create test content with searchable patterns
+        let diff_content = DiffContent {
+            hunks: vec![],
+            full_file_view: vec![
+                DiffLine {
+                    line_type: LineType::Context,
+                    content: "fn hello_world() {".to_string(),
+                    old_line_no: Some(1),
+                    new_line_no: Some(1),
+                },
+                DiffLine {
+                    line_type: LineType::Addition,
+                    content: "    println!(\"Hello, world!\");".to_string(),
+                    old_line_no: None,
+                    new_line_no: Some(2),
+                },
+                DiffLine {
+                    line_type: LineType::Context,
+                    content: "    let world = \"Earth\";".to_string(),
+                    old_line_no: Some(2),
+                    new_line_no: Some(3),
+                },
+                DiffLine {
+                    line_type: LineType::Deletion,
+                    content: "    // Old world comment".to_string(),
+                    old_line_no: Some(3),
+                    new_line_no: None,
+                },
+            ],
+        };
+
+        let file_change = FileChange {
+            filename: "test.rs".to_string(),
+            status: FileStatus::Modified,
+            additions: 1,
+            deletions: 1,
+            patch: None,
+            raw_content: None,
+            diff_content: Some(diff_content),
+        };
+
+        diff_view.set_file(Some(file_change));
+
+        // Test search initialization
+        diff_view.start_search();
+        assert!(diff_view.search_mode);
+        assert_eq!(diff_view.search_query, "");
+        assert!(diff_view.search_matches.is_empty());
+
+        // Test adding characters to search
+        diff_view.update_search_query('w');
+        diff_view.update_search_query('o');
+        diff_view.update_search_query('r');
+        diff_view.update_search_query('l');
+        diff_view.update_search_query('d');
+        assert_eq!(diff_view.search_query, "world");
+        assert_eq!(diff_view.search_input_cursor, 5);
+
+        // Test backspace
+        diff_view.backspace_search();
+        assert_eq!(diff_view.search_query, "worl");
+        assert_eq!(diff_view.search_input_cursor, 4);
+
+        // Complete the search query
+        diff_view.update_search_query('d');
+
+        // Execute search
+        diff_view.execute_search();
+
+        // Check matches found (case-insensitive)
+        // Should match "world" in lines 0, 1, 2, and 3
+        assert!(!diff_view.search_matches.is_empty());
+        assert_eq!(diff_view.search_matches.len(), 4); // "world" appears in all 4 lines
+
+        // Test navigation through matches
+        let initial_match = diff_view.current_match_index.unwrap();
+        diff_view.next_match();
+        assert_ne!(diff_view.current_match_index.unwrap(), initial_match);
+
+        // Test wrap-around
+        for _ in 0..10 {
+            diff_view.next_match();
+        }
+        // Should wrap around and still have a valid index
+        assert!(diff_view.current_match_index.is_some());
+
+        // Test previous match
+        let current = diff_view.current_match_index.unwrap();
+        diff_view.prev_match();
+        assert_ne!(diff_view.current_match_index.unwrap(), current);
+
+        // Test exit search
+        diff_view.exit_search();
+        assert!(!diff_view.search_mode);
+
+        // Test clear search - search for "let" which exists in the content
+        diff_view.start_search();
+        diff_view.update_search_query('l');
+        diff_view.update_search_query('e');
+        diff_view.update_search_query('t');
+        diff_view.execute_search();
+        assert!(!diff_view.search_matches.is_empty());
+
+        diff_view.clear_search();
+        assert!(!diff_view.search_mode);
+        assert_eq!(diff_view.search_query, "");
+        assert!(diff_view.search_matches.is_empty());
+        assert_eq!(diff_view.current_match_index, None);
+    }
+
+    #[test]
+    fn test_search_case_insensitive() {
+        let mut diff_view = DiffView::new();
+
+        let diff_content = DiffContent {
+            hunks: vec![],
+            full_file_view: vec![
+                DiffLine {
+                    line_type: LineType::Context,
+                    content: "HELLO World".to_string(),
+                    old_line_no: Some(1),
+                    new_line_no: Some(1),
+                },
+                DiffLine {
+                    line_type: LineType::Context,
+                    content: "hello world".to_string(),
+                    old_line_no: Some(2),
+                    new_line_no: Some(2),
+                },
+                DiffLine {
+                    line_type: LineType::Context,
+                    content: "HeLLo WoRLd".to_string(),
+                    old_line_no: Some(3),
+                    new_line_no: Some(3),
+                },
+            ],
+        };
+
+        let file_change = FileChange {
+            filename: "test.txt".to_string(),
+            status: FileStatus::Modified,
+            additions: 0,
+            deletions: 0,
+            patch: None,
+            raw_content: None,
+            diff_content: Some(diff_content),
+        };
+
+        diff_view.set_file(Some(file_change));
+
+        // Search for "hello" in lowercase
+        diff_view.start_search();
+        diff_view.update_search_query('h');
+        diff_view.update_search_query('e');
+        diff_view.update_search_query('l');
+        diff_view.update_search_query('l');
+        diff_view.update_search_query('o');
+        diff_view.execute_search();
+
+        // Should match all three lines (case-insensitive)
+        assert_eq!(diff_view.search_matches.len(), 3);
+    }
+
+    #[test]
+    fn test_search_with_no_matches() {
+        let mut diff_view = DiffView::new();
+
+        let diff_content = DiffContent {
+            hunks: vec![],
+            full_file_view: vec![DiffLine {
+                line_type: LineType::Context,
+                content: "some content".to_string(),
+                old_line_no: Some(1),
+                new_line_no: Some(1),
+            }],
+        };
+
+        let file_change = FileChange {
+            filename: "test.txt".to_string(),
+            status: FileStatus::Modified,
+            additions: 0,
+            deletions: 0,
+            patch: None,
+            raw_content: None,
+            diff_content: Some(diff_content),
+        };
+
+        diff_view.set_file(Some(file_change));
+
+        // Search for non-existent text
+        diff_view.start_search();
+        diff_view.search_query = "nonexistent".to_string();
+        diff_view.execute_search();
+
+        // No matches should be found
+        assert!(diff_view.search_matches.is_empty());
+        assert_eq!(diff_view.current_match_index, None);
+
+        // Navigation should do nothing
+        diff_view.next_match();
+        assert_eq!(diff_view.current_match_index, None);
+
+        diff_view.prev_match();
+        assert_eq!(diff_view.current_match_index, None);
+    }
+
+    #[test]
+    fn test_search_mode_transitions() {
+        let mut diff_view = DiffView::new();
+
+        // Create test content
+        let diff_content = DiffContent {
+            hunks: vec![],
+            full_file_view: vec![DiffLine {
+                line_type: LineType::Context,
+                content: "test content".to_string(),
+                old_line_no: Some(1),
+                new_line_no: Some(1),
+            }],
+        };
+
+        let file_change = FileChange {
+            filename: "test.txt".to_string(),
+            status: FileStatus::Modified,
+            additions: 0,
+            deletions: 0,
+            patch: None,
+            raw_content: None,
+            diff_content: Some(diff_content),
+        };
+
+        diff_view.set_file(Some(file_change));
+
+        // Test initial state
+        assert!(!diff_view.search_mode);
+        assert!(!diff_view.search_active);
+
+        // Start search
+        diff_view.start_search();
+        assert!(diff_view.search_mode);
+        assert!(!diff_view.search_active);
+
+        // Add search query
+        diff_view.update_search_query('t');
+        diff_view.update_search_query('e');
+        diff_view.update_search_query('s');
+        diff_view.update_search_query('t');
+
+        // Execute search (should exit input mode but keep search active)
+        diff_view.execute_search();
+        assert!(!diff_view.search_mode); // Should exit input mode
+        assert!(diff_view.search_active); // Should remain active
+        assert!(!diff_view.search_matches.is_empty()); // Should have matches
+
+        // Clear search
+        diff_view.exit_search();
+        assert!(!diff_view.search_mode);
+        assert!(!diff_view.search_active);
+        assert!(diff_view.search_query.is_empty());
+    }
+
+    #[test]
+    fn test_escape_key_search_behavior() {
+        let mut diff_view = DiffView::new();
+
+        // Create test content
+        let diff_content = DiffContent {
+            hunks: vec![],
+            full_file_view: vec![
+                DiffLine {
+                    line_type: LineType::Context,
+                    content: "test content".to_string(),
+                    old_line_no: Some(1),
+                    new_line_no: Some(1),
+                },
+                DiffLine {
+                    line_type: LineType::Addition,
+                    content: "added line".to_string(),
+                    old_line_no: None,
+                    new_line_no: Some(2),
+                },
+            ],
+        };
+
+        let file_change = FileChange {
+            filename: "test.txt".to_string(),
+            status: FileStatus::Modified,
+            additions: 1,
+            deletions: 0,
+            patch: None,
+            raw_content: None,
+            diff_content: Some(diff_content),
+        };
+
+        diff_view.set_file(Some(file_change));
+
+        // Test 1: Start search mode and verify states
+        diff_view.start_search();
+        assert!(diff_view.search_mode, "search_mode should be true");
+        assert!(!diff_view.search_active, "search_active should be false");
+
+        // Test 2: Execute search and verify states
+        diff_view.update_search_query('t');
+        diff_view.update_search_query('e');
+        diff_view.update_search_query('s');
+        diff_view.update_search_query('t');
+        diff_view.execute_search();
+        assert!(
+            !diff_view.search_mode,
+            "search_mode should be false after execute"
+        );
+        assert!(
+            diff_view.search_active,
+            "search_active should be true after execute"
+        );
+        assert!(!diff_view.search_matches.is_empty(), "should have matches");
+
+        // Test 3: Clear search and verify all states are reset
+        diff_view.clear_search();
+        assert!(
+            !diff_view.search_mode,
+            "search_mode should be false after clear"
+        );
+        assert!(
+            !diff_view.search_active,
+            "search_active should be false after clear"
+        );
+        assert!(
+            diff_view.search_query.is_empty(),
+            "search_query should be empty"
+        );
+        assert!(
+            diff_view.search_matches.is_empty(),
+            "search_matches should be empty"
+        );
+        assert_eq!(
+            diff_view.current_match_index, None,
+            "current_match_index should be None"
+        );
+
+        // Test 4: Start search again and exit_search without executing
+        diff_view.start_search();
+        diff_view.update_search_query('a');
+        assert!(diff_view.search_mode, "search_mode should be true");
+        assert!(!diff_view.search_active, "search_active should be false");
+
+        diff_view.exit_search();
+        assert!(
+            !diff_view.search_mode,
+            "search_mode should be false after exit"
+        );
+        assert!(
+            !diff_view.search_active,
+            "search_active should be false after exit"
+        );
+        assert!(
+            diff_view.search_query.is_empty(),
+            "search_query should be cleared"
+        );
+    }
+
+    #[test]
+    fn test_search_scroll_to_match() {
+        let mut diff_view = DiffView::new();
+        diff_view.viewport_height = 5; // Small viewport
+
+        // Create content with match at the bottom
+        let mut lines = vec![];
+        for i in 0..20 {
+            lines.push(DiffLine {
+                line_type: LineType::Context,
+                content: format!("line {i}"),
+                old_line_no: Some(i + 1),
+                new_line_no: Some(i + 1),
+            });
+        }
+        // Add a unique searchable line at the bottom
+        lines.push(DiffLine {
+            line_type: LineType::Addition,
+            content: "unique_search_term".to_string(),
+            old_line_no: None,
+            new_line_no: Some(21),
+        });
+
+        let diff_content = DiffContent {
+            hunks: vec![],
+            full_file_view: lines,
+        };
+
+        let file_change = FileChange {
+            filename: "test.txt".to_string(),
+            status: FileStatus::Modified,
+            additions: 1,
+            deletions: 0,
+            patch: None,
+            raw_content: None,
+            diff_content: Some(diff_content),
+        };
+
+        diff_view.set_file(Some(file_change));
+        diff_view.update_max_scroll();
+
+        // Initially at top
+        diff_view.scroll_offset = 0;
+
+        // Search for the unique term at bottom
+        diff_view.start_search();
+        diff_view.search_query = "unique_search_term".to_string();
+        diff_view.execute_search();
+
+        // Should have found one match
+        assert_eq!(diff_view.search_matches.len(), 1);
+        assert_eq!(diff_view.current_match_index, Some(0));
+
+        // Should have scrolled to show the match
+        // The match is at line 20, viewport is 5, so should center around line 20
+        // Expected offset would be around 18 (20 - viewport_height/2)
+        assert!(diff_view.scroll_offset > 15);
     }
 }
