@@ -1,42 +1,46 @@
 # Gruvbox Dark Theme
-# A retro groove color scheme
+# A retro groove color scheme - official colors
 
 # UI colors
-background = "#282828"
-foreground = "#ebdbb2"
-border = "#504945"
-border_focused = "#fabd2f"
-title = "#fb4934"
-subtitle = "#a89984"
+background = "#282828"       # dark0
+foreground = "#ebdbb2"       # light1
+border = "#504945"           # dark2
+border_focused = "#fabd2f"   # bright_yellow
+title = "#fb4934"            # bright_red
+subtitle = "#a89984"         # light4
 
 # Diff colors
-added = "#b8bb26"
-removed = "#fb4934"
-modified = "#fabd2f"
-context = "#928374"
-header = "#83a598"
+added = "#b8bb26"            # bright_green
+removed = "#fb4934"          # bright_red
+modified = "#fabd2f"         # bright_yellow
+context = "#928374"          # gray
+header = "#83a598"           # bright_blue
 
 # Status colors
-info = "#83a598"
-warning = "#fabd2f"
-error = "#fb4934"
-success = "#b8bb26"
+info = "#83a598"             # bright_blue
+warning = "#fabd2f"          # bright_yellow
+error = "#fb4934"            # bright_red
+success = "#b8bb26"          # bright_green
 
 # Selection colors
-selection_bg = "#3c3836"
-selection_fg = "#ebdbb2"
-cursor = "#fe8019"
+selection_bg = "#3c3836"     # dark1
+selection_fg = "#ebdbb2"     # light1
+cursor = "#fe8019"           # bright_orange
 
 # Navigation colors
-nav_bg = "#1d2021"
-nav_fg = "#d5c4a1"
-nav_active = "#d3869b"
+nav_bg = "#1d2021"           # dark0_hard
+nav_fg = "#d5c4a1"           # light2
+nav_active = "#d3869b"       # bright_purple
 
 # Sidebar colors
-sidebar_bg = "#1d2021"
-sidebar_fg = "#bdae93"
-sidebar_selected = "#3c3836"
+sidebar_bg = "#1d2021"       # dark0_hard
+sidebar_fg = "#bdae93"       # light3
+sidebar_selected = "#3c3836" # dark1
 
 # Scrollbar
-scrollbar = "#3c3836"
-scrollbar_thumb = "#665c54"
+scrollbar = "#3c3836"        # dark1
+scrollbar_thumb = "#665c54"  # dark3
+
+# Search colors
+search_match = "#fabd2f"     # bright_yellow
+search_current = "#d3869b"   # bright_purple

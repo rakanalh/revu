@@ -1,42 +1,46 @@
 # One Dark Theme
-# Atom's iconic One Dark theme
+# Atom's iconic One Dark theme - official colors
 
 # UI colors
-background = "#282c34"
-foreground = "#abb2bf"
-border = "#3e4451"
-border_focused = "#61afef"
-title = "#e06c75"
-subtitle = "#5c6370"
+background = "#282c34"       # Background
+foreground = "#abb2bf"       # Foreground
+border = "#3e4452"           # Selection/Dark gray
+border_focused = "#61afef"   # Blue
+title = "#e06c75"            # Red
+subtitle = "#5c6370"         # Comment/Light gray
 
 # Diff colors
-added = "#98c379"
-removed = "#e06c75"
-modified = "#e5c07b"
-context = "#5c6370"
-header = "#56b6c2"
+added = "#98c379"            # Green
+removed = "#e06c75"          # Red
+modified = "#e5c07b"         # Yellow
+context = "#5c6370"          # Comment
+header = "#56b6c2"           # Cyan
 
 # Status colors
-info = "#61afef"
-warning = "#e5c07b"
-error = "#e06c75"
-success = "#98c379"
+info = "#61afef"             # Blue
+warning = "#e5c07b"          # Yellow
+error = "#e06c75"            # Red
+success = "#98c379"          # Green
 
 # Selection colors
-selection_bg = "#3e4451"
-selection_fg = "#abb2bf"
-cursor = "#c678dd"
+selection_bg = "#3e4452"     # Selection
+selection_fg = "#abb2bf"     # Foreground
+cursor = "#c678dd"           # Purple
 
 # Navigation colors
-nav_bg = "#21252b"
-nav_fg = "#abb2bf"
-nav_active = "#c678dd"
+nav_bg = "#282c34"           # Background (darkened)
+nav_fg = "#abb2bf"           # Foreground
+nav_active = "#c678dd"       # Purple
 
 # Sidebar colors
-sidebar_bg = "#21252b"
-sidebar_fg = "#9196a1"
-sidebar_selected = "#323842"
+sidebar_bg = "#282c34"       # Background (darkened)
+sidebar_fg = "#5c6370"       # Comment
+sidebar_selected = "#3e4452" # Selection
 
 # Scrollbar
-scrollbar = "#3e4451"
-scrollbar_thumb = "#5c6370"
+scrollbar = "#3e4452"        # Selection
+scrollbar_thumb = "#5c6370"  # Comment
+
+# Search colors
+search_match = "#e5c07b"     # Yellow
+search_current = "#c678dd"   # Purple

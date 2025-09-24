@@ -1,42 +1,46 @@
 # Catppuccin Mocha Theme
-# A soothing pastel theme for the high-spirited
+# A soothing pastel theme for the high-spirited with official colors
 
 # UI colors
-background = "#1e1e2e"
-foreground = "#cdd6f4"
-border = "#585b70"
-border_focused = "#89b4fa"
-title = "#f5e0dc"
-subtitle = "#a6adc8"
+background = "#1e1e2e"       # Base
+foreground = "#cdd6f4"       # Text
+border = "#585b70"           # Surface2
+border_focused = "#89b4fa"   # Blue
+title = "#f5e0dc"            # Rosewater
+subtitle = "#a6adc8"         # Subtext0
 
 # Diff colors
-added = "#a6e3a1"
-removed = "#f38ba8"
-modified = "#fab387"
-context = "#6c7086"
-header = "#89dceb"
+added = "#a6e3a1"            # Green
+removed = "#f38ba8"          # Red
+modified = "#fab387"         # Peach
+context = "#6c7086"          # Overlay0
+header = "#89dceb"           # Sky
 
 # Status colors
-info = "#89b4fa"
-warning = "#f9e2af"
-error = "#f38ba8"
-success = "#a6e3a1"
+info = "#89b4fa"             # Blue
+warning = "#f9e2af"          # Yellow
+error = "#f38ba8"            # Red
+success = "#a6e3a1"          # Green
 
 # Selection colors
-selection_bg = "#313244"
-selection_fg = "#cdd6f4"
-cursor = "#f5e0dc"
+selection_bg = "#313244"     # Surface0
+selection_fg = "#cdd6f4"     # Text
+cursor = "#f5e0dc"           # Rosewater
 
 # Navigation colors
-nav_bg = "#181825"
-nav_fg = "#bac2de"
-nav_active = "#cba6f7"
+nav_bg = "#181825"           # Mantle
+nav_fg = "#bac2de"           # Subtext1
+nav_active = "#cba6f7"       # Mauve
 
 # Sidebar colors
-sidebar_bg = "#11111b"
-sidebar_fg = "#a6adc8"
-sidebar_selected = "#45475a"
+sidebar_bg = "#11111b"       # Crust
+sidebar_fg = "#a6adc8"       # Subtext0
+sidebar_selected = "#45475a" # Surface1
 
 # Scrollbar
-scrollbar = "#313244"
-scrollbar_thumb = "#585b70"
+scrollbar = "#313244"        # Surface0
+scrollbar_thumb = "#585b70"  # Surface2
+
+# Search colors
+search_match = "#f9e2af"     # Yellow
+search_current = "#cba6f7"   # Mauve

@@ -1,42 +1,46 @@
 # Solarized Light Theme
-# Precision colors for machines and people - light variant
+# Precision colors for machines and people - light variant with official colors
 
 # UI colors
-background = "#fdf6e3"
-foreground = "#657b83"
-border = "#eee8d5"
-border_focused = "#268bd2"
-title = "#cb4b16"
-subtitle = "#93a1a1"
+background = "#fdf6e3"       # base3
+foreground = "#657b83"       # base00
+border = "#eee8d5"           # base2
+border_focused = "#268bd2"   # blue
+title = "#cb4b16"            # orange
+subtitle = "#93a1a1"         # base1
 
 # Diff colors
-added = "#859900"
-removed = "#dc322f"
-modified = "#b58900"
-context = "#93a1a1"
-header = "#2aa198"
+added = "#859900"            # green
+removed = "#dc322f"          # red
+modified = "#b58900"         # yellow
+context = "#93a1a1"          # base1
+header = "#2aa198"           # cyan
 
 # Status colors
-info = "#268bd2"
-warning = "#b58900"
-error = "#dc322f"
-success = "#859900"
+info = "#268bd2"             # blue
+warning = "#b58900"          # yellow
+error = "#dc322f"            # red
+success = "#859900"          # green
 
 # Selection colors
-selection_bg = "#eee8d5"
-selection_fg = "#586e75"
-cursor = "#d33682"
+selection_bg = "#eee8d5"     # base2
+selection_fg = "#586e75"     # base01
+cursor = "#d33682"           # magenta
 
 # Navigation colors
-nav_bg = "#eee8d5"
-nav_fg = "#657b83"
-nav_active = "#6c71c4"
+nav_bg = "#eee8d5"           # base2
+nav_fg = "#657b83"           # base00
+nav_active = "#6c71c4"       # violet
 
 # Sidebar colors
-sidebar_bg = "#eee8d5"
-sidebar_fg = "#839496"
-sidebar_selected = "#d3cbb7"
+sidebar_bg = "#eee8d5"       # base2
+sidebar_fg = "#839496"       # base0
+sidebar_selected = "#eee8d5" # base2
 
 # Scrollbar
-scrollbar = "#eee8d5"
-scrollbar_thumb = "#93a1a1"
+scrollbar = "#eee8d5"        # base2
+scrollbar_thumb = "#93a1a1"  # base1
+
+# Search colors
+search_match = "#b58900"     # yellow
+search_current = "#6c71c4"   # violet

@@ -1,42 +1,46 @@
 # Dracula Theme
-# A dark theme for many editors, shells, and more
+# A dark theme for many editors, shells, and more - official colors
 
 # UI colors
-background = "#282a36"
-foreground = "#f8f8f2"
-border = "#44475a"
-border_focused = "#bd93f9"
-title = "#ff79c6"
-subtitle = "#6272a4"
+background = "#282a36"       # Background
+foreground = "#f8f8f2"       # Foreground
+border = "#44475a"           # Current Line/Selection
+border_focused = "#bd93f9"   # Purple
+title = "#ff79c6"            # Pink
+subtitle = "#6272a4"         # Comment
 
 # Diff colors
-added = "#50fa7b"
-removed = "#ff5555"
-modified = "#ffb86c"
-context = "#6272a4"
-header = "#8be9fd"
+added = "#50fa7b"            # Green
+removed = "#ff5555"          # Red
+modified = "#ffb86c"         # Orange
+context = "#6272a4"          # Comment
+header = "#8be9fd"           # Cyan
 
 # Status colors
-info = "#8be9fd"
-warning = "#f1fa8c"
-error = "#ff5555"
-success = "#50fa7b"
+info = "#8be9fd"             # Cyan
+warning = "#f1fa8c"          # Yellow
+error = "#ff5555"            # Red
+success = "#50fa7b"          # Green
 
 # Selection colors
-selection_bg = "#44475a"
-selection_fg = "#f8f8f2"
-cursor = "#ff79c6"
+selection_bg = "#44475a"     # Selection
+selection_fg = "#f8f8f2"     # Foreground
+cursor = "#ff79c6"           # Pink
 
 # Navigation colors
-nav_bg = "#21222c"
-nav_fg = "#f8f8f2"
-nav_active = "#bd93f9"
+nav_bg = "#282a36"           # Background (darkened)
+nav_fg = "#f8f8f2"           # Foreground
+nav_active = "#bd93f9"       # Purple
 
 # Sidebar colors
-sidebar_bg = "#191a21"
-sidebar_fg = "#6272a4"
-sidebar_selected = "#44475a"
+sidebar_bg = "#282a36"       # Background (darkened)
+sidebar_fg = "#6272a4"       # Comment
+sidebar_selected = "#44475a" # Current Line
 
 # Scrollbar
-scrollbar = "#44475a"
-scrollbar_thumb = "#6272a4"
+scrollbar = "#44475a"        # Current Line
+scrollbar_thumb = "#6272a4"  # Comment
+
+# Search colors
+search_match = "#f1fa8c"     # Yellow
+search_current = "#ff79c6"   # Pink

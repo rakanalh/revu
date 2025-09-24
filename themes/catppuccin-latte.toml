@@ -1,42 +1,46 @@
 # Catppuccin Latte Theme
-# A light, warm pastel theme
+# A light, warm pastel theme with official colors
 
 # UI colors
-background = "#eff1f5"
-foreground = "#4c4f69"
-border = "#acb0be"
-border_focused = "#1e66f5"
-title = "#dc8a78"
-subtitle = "#6c6f85"
+background = "#eff1f5"       # Base
+foreground = "#4c4f69"       # Text
+border = "#acb0be"           # Surface2
+border_focused = "#1e66f5"   # Blue
+title = "#dc8a78"            # Rosewater
+subtitle = "#6c6f85"         # Subtext0
 
 # Diff colors
-added = "#40a02b"
-removed = "#d20f39"
-modified = "#fe640b"
-context = "#9ca0b0"
-header = "#04a5e5"
+added = "#40a02b"            # Green
+removed = "#d20f39"          # Red
+modified = "#df8e1d"         # Yellow
+context = "#9ca0b0"          # Overlay0
+header = "#04a5e5"           # Sky
 
 # Status colors
-info = "#1e66f5"
-warning = "#df8e1d"
-error = "#d20f39"
-success = "#40a02b"
+info = "#1e66f5"             # Blue
+warning = "#df8e1d"          # Yellow
+error = "#d20f39"            # Red
+success = "#40a02b"          # Green
 
 # Selection colors
-selection_bg = "#ccd0da"
-selection_fg = "#4c4f69"
-cursor = "#dc8a78"
+selection_bg = "#ccd0da"     # Surface0
+selection_fg = "#4c4f69"     # Text
+cursor = "#dc8a78"           # Rosewater
 
 # Navigation colors
-nav_bg = "#e6e9ef"
-nav_fg = "#5c5f77"
-nav_active = "#8839ef"
+nav_bg = "#e6e9ef"           # Mantle
+nav_fg = "#5c5f77"           # Subtext1
+nav_active = "#8839ef"       # Mauve
 
 # Sidebar colors
-sidebar_bg = "#dce0e8"
-sidebar_fg = "#6c6f85"
-sidebar_selected = "#bcc0cc"
+sidebar_bg = "#dce0e8"       # Crust
+sidebar_fg = "#6c6f85"       # Subtext0
+sidebar_selected = "#bcc0cc" # Surface1
 
 # Scrollbar
-scrollbar = "#ccd0da"
-scrollbar_thumb = "#acb0be"
+scrollbar = "#ccd0da"        # Surface0
+scrollbar_thumb = "#acb0be"  # Surface2
+
+# Search colors
+search_match = "#df8e1d"     # Yellow
+search_current = "#8839ef"   # Mauve

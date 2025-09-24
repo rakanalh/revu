@@ -1,42 +1,46 @@
 # Nord Theme
-# An arctic, north-bluish clean and elegant theme
+# An arctic, north-bluish clean and elegant theme - official colors
 
 # UI colors
-background = "#2e3440"
-foreground = "#d8dee9"
-border = "#4c566a"
-border_focused = "#88c0d0"
-title = "#8fbcbb"
-subtitle = "#e5e9f0"
+background = "#2e3440"       # nord0
+foreground = "#d8dee9"       # nord4
+border = "#4c566a"           # nord3
+border_focused = "#88c0d0"   # nord8
+title = "#8fbcbb"            # nord7
+subtitle = "#e5e9f0"         # nord5
 
 # Diff colors
-added = "#a3be8c"
-removed = "#bf616a"
-modified = "#ebcb8b"
-context = "#616e88"
-header = "#88c0d0"
+added = "#a3be8c"            # nord14 (Green)
+removed = "#bf616a"          # nord11 (Red)
+modified = "#ebcb8b"         # nord13 (Yellow)
+context = "#4c566a"          # nord3
+header = "#88c0d0"           # nord8
 
 # Status colors
-info = "#5e81ac"
-warning = "#ebcb8b"
-error = "#bf616a"
-success = "#a3be8c"
+info = "#5e81ac"             # nord10
+warning = "#ebcb8b"          # nord13 (Yellow)
+error = "#bf616a"            # nord11 (Red)
+success = "#a3be8c"          # nord14 (Green)
 
 # Selection colors
-selection_bg = "#434c5e"
-selection_fg = "#eceff4"
-cursor = "#d8dee9"
+selection_bg = "#434c5e"     # nord2
+selection_fg = "#eceff4"     # nord6
+cursor = "#d8dee9"           # nord4
 
 # Navigation colors
-nav_bg = "#2e3440"
-nav_fg = "#d8dee9"
-nav_active = "#b48ead"
+nav_bg = "#3b4252"           # nord1
+nav_fg = "#d8dee9"           # nord4
+nav_active = "#b48ead"       # nord15 (Purple)
 
 # Sidebar colors
-sidebar_bg = "#2e3440"
-sidebar_fg = "#d8dee9"
-sidebar_selected = "#3b4252"
+sidebar_bg = "#3b4252"       # nord1
+sidebar_fg = "#d8dee9"       # nord4
+sidebar_selected = "#434c5e" # nord2
 
 # Scrollbar
-scrollbar = "#434c5e"
-scrollbar_thumb = "#4c566a"
+scrollbar = "#434c5e"        # nord2
+scrollbar_thumb = "#4c566a"  # nord3
+
+# Search colors
+search_match = "#ebcb8b"     # nord13 (Yellow)
+search_current = "#b48ead"   # nord15 (Purple)

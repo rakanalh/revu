@@ -1,42 +1,46 @@
 # Tokyo Night Theme
-# A clean, dark theme that celebrates the lights of Tokyo at night
+# A clean, dark theme that celebrates the lights of Tokyo at night - official colors
 
 # UI colors
-background = "#1a1b26"
-foreground = "#a9b1d6"
-border = "#414868"
-border_focused = "#7aa2f7"
-title = "#bb9af7"
-subtitle = "#565f89"
+background = "#1a1b26"       # Background
+foreground = "#c0caf5"       # Foreground (Text 1)
+border = "#414868"           # UI 2
+border_focused = "#7aa2f7"   # Blue
+title = "#bb9af7"            # Purple
+subtitle = "#a9b1d6"         # Subtext (Text 2)
 
 # Diff colors
-added = "#9ece6a"
-removed = "#f7768e"
-modified = "#e0af68"
-context = "#565f89"
-header = "#7dcfff"
+added = "#9ece6a"            # Green
+removed = "#f7768e"          # Red
+modified = "#e0af68"         # Yellow
+context = "#565f89"          # Comment
+header = "#7dcfff"           # Cyan
 
 # Status colors
-info = "#7aa2f7"
-warning = "#e0af68"
-error = "#f7768e"
-success = "#9ece6a"
+info = "#7aa2f7"             # Blue
+warning = "#e0af68"          # Yellow
+error = "#f7768e"            # Red
+success = "#9ece6a"          # Green
 
 # Selection colors
-selection_bg = "#283457"
-selection_fg = "#c0caf5"
-cursor = "#bb9af7"
+selection_bg = "#283457"     # Selection
+selection_fg = "#c0caf5"     # Text 1
+cursor = "#bb9af7"           # Purple
 
 # Navigation colors
-nav_bg = "#16161e"
-nav_fg = "#a9b1d6"
-nav_active = "#bb9af7"
+nav_bg = "#16161e"           # Background 2
+nav_fg = "#a9b1d6"           # Text 2
+nav_active = "#bb9af7"       # Purple
 
 # Sidebar colors
-sidebar_bg = "#15161e"
-sidebar_fg = "#787c99"
-sidebar_selected = "#2a2b3d"
+sidebar_bg = "#16161e"       # Background 2
+sidebar_fg = "#a9b1d6"       # Text 2
+sidebar_selected = "#2f3549" # UI 3
 
 # Scrollbar
-scrollbar = "#2a2b3d"
-scrollbar_thumb = "#414868"
+scrollbar = "#2f3549"        # UI 3
+scrollbar_thumb = "#414868"  # UI 2
+
+# Search colors
+search_match = "#e0af68"     # Yellow
+search_current = "#bb9af7"   # Purple
