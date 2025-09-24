@@ -335,7 +335,8 @@ impl App {
         } else if commit_index == self.commits.len() - 1 && self.pr_files.is_some() {
             // For the last commit (all changes in PR), use PR files directly
             let pr_files = self.pr_files.as_ref().unwrap().clone();
-            self.commit_files_cache.insert(commit.sha.clone(), pr_files.clone());
+            self.commit_files_cache
+                .insert(commit.sha.clone(), pr_files.clone());
             pr_files
         } else {
             // Need to fetch from API (only as last resort)
@@ -345,7 +346,8 @@ impl App {
                 .await?;
 
             // Cache for future use
-            self.commit_files_cache.insert(commit.sha.clone(), fetched_files.clone());
+            self.commit_files_cache
+                .insert(commit.sha.clone(), fetched_files.clone());
             fetched_files
         };
 

@@ -75,9 +75,7 @@ async fn main() -> Result<()> {
         eprintln!("Warning: No GitHub token found. You may encounter rate limits.");
         eprintln!("Please provide authentication using one of these methods:");
         eprintln!("  1. Command line: --token YOUR_TOKEN");
-        eprintln!(
-            "  2. ~/.authinfo file: machine api.github.com login USERNAME password TOKEN"
-        );
+        eprintln!("  2. ~/.authinfo file: machine api.github.com login USERNAME password TOKEN");
         eprintln!("  3. Environment variable: export GITHUB_TOKEN=YOUR_TOKEN");
     }
 

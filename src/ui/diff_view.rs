@@ -46,11 +46,7 @@ impl DiffView {
     pub fn set_file(&mut self, file: Option<FileChange>) {
         if let Some(ref f) = file {
             // Get file extension for caching
-            let ext = f.filename
-                .rsplit('.')
-                .next()
-                .unwrap_or("")
-                .to_string();
+            let ext = f.filename.rsplit('.').next().unwrap_or("").to_string();
 
             // Check cache first, create new highlighter only if needed
             if !self.highlighter_cache.contains_key(&ext) && !ext.is_empty() {
@@ -71,7 +67,8 @@ impl DiffView {
                 // Calculate and cache hunk positions
                 self.current_file = file.clone();
                 self.update_hunk_positions();
-                self.hunk_cache.insert(file_key.clone(), self.hunk_positions.clone());
+                self.hunk_cache
+                    .insert(file_key.clone(), self.hunk_positions.clone());
             } else {
                 // Use cached hunk positions
                 self.hunk_positions = self.hunk_cache.get(&file_key).cloned().unwrap_or_default();
@@ -93,14 +90,11 @@ impl DiffView {
         self.highlighter_cache.clear();
         // Recreate syntax highlighter with new theme if a file is loaded
         if let Some(ref file) = self.current_file {
-            let ext = file.filename
-                .rsplit('.')
-                .next()
-                .unwrap_or("")
-                .to_string();
+            let ext = file.filename.rsplit('.').next().unwrap_or("").to_string();
             if !ext.is_empty() {
                 let highlighter = SyntaxHighlighter::with_theme(&file.filename, theme_name);
-                self.highlighter_cache.insert(ext.clone(), highlighter.clone());
+                self.highlighter_cache
+                    .insert(ext.clone(), highlighter.clone());
                 self.syntax_highlighter = Some(highlighter);
             }
         }

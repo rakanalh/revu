@@ -89,8 +89,11 @@ fn read_authinfo_token() -> Result<Option<String>> {
         }
 
         if std::env::var("REVU_DEBUG").is_ok() {
-            eprintln!("Debug: Found {} entries in {}, but none match api.github.com",
-                     parse_all_authinfo(&contents)?.len(), path.display());
+            eprintln!(
+                "Debug: Found {} entries in {}, but none match api.github.com",
+                parse_all_authinfo(&contents)?.len(),
+                path.display()
+            );
         }
     }
 
@@ -132,7 +135,7 @@ fn parse_all_authinfo(contents: &str) -> Result<Vec<AuthInfo>> {
             _ => {
                 match current_field {
                     Some("machine") => machine = Some(token.to_string()),
-                    Some("login") => {}, // Skip the login value, we don't need it
+                    Some("login") => {} // Skip the login value, we don't need it
                     Some("password") => password = Some(token.to_string()),
                     _ => {}
                 }
@@ -152,7 +155,6 @@ fn parse_all_authinfo(contents: &str) -> Result<Vec<AuthInfo>> {
 
     Ok(entries)
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -178,7 +180,10 @@ mod tests {
         let result = parse_all_authinfo(content).unwrap();
         assert_eq!(result.len(), 3);
         // Find the GitHub entry
-        let github_auth = result.iter().find(|a| a.machine == "api.github.com").unwrap();
+        let github_auth = result
+            .iter()
+            .find(|a| a.machine == "api.github.com")
+            .unwrap();
         assert_eq!(github_auth.password, "ghp_token123");
     }
 
