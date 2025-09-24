@@ -29,7 +29,7 @@ pub fn get_github_token(cli_token: Option<String>) -> Result<Option<String>> {
         Err(e) => {
             // Error reading file
             if std::env::var("REVU_DEBUG").is_ok() {
-                eprintln!("Debug: Error reading authinfo: {}", e);
+                eprintln!("Debug: Error reading authinfo: {e}");
             }
         }
     }

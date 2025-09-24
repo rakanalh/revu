@@ -502,15 +502,17 @@ impl App {
 
                 async move {
                     // For the last commit, use PR files if available
-                    if is_last && pr_files.is_some() {
-                        Ok((sha, pr_files.unwrap()))
-                    } else {
-                        match client.get_commit_files(&owner, &repo, &sha).await {
-                            Ok(files) => Ok((sha, files)),
-                            Err(e) => {
-                                eprintln!("Failed to pre-fetch commit {}: {}", &sha, e);
-                                Err(e)
-                            }
+                    if is_last {
+                        if let Some(files) = pr_files {
+                            return Ok((sha, files));
+                        }
+                    }
+
+                    match client.get_commit_files(&owner, &repo, &sha).await {
+                        Ok(files) => Ok((sha, files)),
+                        Err(e) => {
+                            eprintln!("Failed to pre-fetch commit {}: {}", &sha, e);
+                            Err(e)
                         }
                     }
                 }
@@ -521,10 +523,8 @@ impl App {
         let results = join_all(futures).await;
 
         // Store successful results in cache
-        for result in results {
-            if let Ok((sha, files)) = result {
-                self.commit_files_cache.insert(sha, files);
-            }
+        for (sha, files) in results.into_iter().flatten() {
+            self.commit_files_cache.insert(sha, files);
         }
 
         Ok(())
