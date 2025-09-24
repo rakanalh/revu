@@ -2,17 +2,13 @@ name: Release
 
 on:
   release:
-    types: [created]
-  push:
-    tags:
-      - 'v*'
+    types: [published]
 
 env:
   CARGO_TERM_COLOR: always
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+permissions:
+  contents: write
 
 jobs:
   build-release:
@@ -41,21 +37,9 @@ jobs:
         shasum -a 256 revu-linux-amd64.tar.gz > revu-linux-amd64.tar.gz.sha256
 
     - name: Upload binary to release
-      if: github.event_name == 'release'
-      uses: svenstaro/upload-release-action@v2
+      uses: softprops/action-gh-release@v1
       with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: revu-linux-amd64.tar.gz
-        asset_name: revu-linux-amd64.tar.gz
-        tag: ${{ github.ref }}
-        overwrite: true
-
-    - name: Upload checksum to release
-      if: github.event_name == 'release'
-      uses: svenstaro/upload-release-action@v2
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: revu-linux-amd64.tar.gz.sha256
-        asset_name: revu-linux-amd64.tar.gz.sha256
-        tag: ${{ github.ref }}
-        overwrite: true
+        files: |
+          revu-linux-amd64.tar.gz
+          revu-linux-amd64.tar.gz.sha256
+        token: ${{ secrets.GITHUB_TOKEN }}
