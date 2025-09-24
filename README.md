@@ -27,7 +27,7 @@ A fast, keyboard-driven terminal user interface for reviewing GitHub Pull Reques
 - [ ] Comment on a line
 - [ ] Approve a PR
 - [x] Syntax highlighting
-- [ ] Search within the diff
+- [x] Search within the diff
 - [ ] Resolve conflicts
 
 ## Installation
