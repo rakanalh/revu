@@ -29,7 +29,7 @@ regex = "1.11"
 similar = "2.6"
 chrono = "0.4"
 futures = "0.3"
-lru = "0.12"
+lru = "0.16"
 
 # HTTP client for raw diffs
 reqwest = { version = "0.12", features = ["json"] }
