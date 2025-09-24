@@ -1,5 +1,9 @@
 # Revu - Terminal UI for GitHub PR Reviews
 
+[![CI](https://github.com/rakan/GithubReview/actions/workflows/ci.yml/badge.svg)](https://github.com/rakan/GithubReview/actions/workflows/ci.yml)
+[![Rust](https://img.shields.io/badge/rust-%23dea584.svg?style=flat&logo=rust&logoColor=white)](https://www.rust-lang.org)
+[![Crates.io](https://img.shields.io/crates/v/revu.svg)](https://crates.io/crates/revu)
+
 A fast, keyboard-driven terminal user interface for reviewing GitHub Pull Requests in the exact steps the PR author took to author the PR. Experience code changes with syntax highlighting, diff viewing, and customizable themes.
 
 ![Revu Screenshot](docs/screenshot.png)
