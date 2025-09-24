@@ -1,0 +1,57 @@
+name: Release
+
+on:
+  release:
+    types: [created]
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-release:
+    name: Build Release
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+
+    - name: Build release binary
+      run: cargo build --release
+
+    - name: Strip binary
+      run: strip target/release/revu
+
+    - name: Create archive
+      run: |
+        cd target/release
+        tar czf ../../revu-linux-amd64.tar.gz revu
+        cd ../..
+        shasum -a 256 revu-linux-amd64.tar.gz > revu-linux-amd64.tar.gz.sha256
+
+    - name: Upload binary to release
+      if: github.event_name == 'release'
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: revu-linux-amd64.tar.gz
+        asset_name: revu-linux-amd64.tar.gz
+        tag: ${{ github.ref }}
+        overwrite: true
+
+    - name: Upload checksum to release
+      if: github.event_name == 'release'
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: revu-linux-amd64.tar.gz.sha256
+        asset_name: revu-linux-amd64.tar.gz.sha256
+        tag: ${{ github.ref }}
+        overwrite: true
